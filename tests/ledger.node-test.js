@@ -122,7 +122,8 @@ export default {
     const legacy = sale({
       id: 10,
       reference: 'old',
-      jurisdictions: [{ jurisdiction: null, level: null, country: 'US', state: 'VT', rate: '7.0', taxableAmount: 5000, amount: 350, reason: 'standard_rated' }],
+      // As the earliest Stripe entries really are: nothing identifying the place inside the part.
+      jurisdictions: [{ jurisdiction: null, level: null, country: null, state: null, rate: '7.0', taxableAmount: 5000, amount: 350, reason: 'standard_rated' }],
     });
     const current = sale({
       id: 11,

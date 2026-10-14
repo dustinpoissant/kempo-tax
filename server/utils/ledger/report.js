@@ -20,9 +20,17 @@ import { formatPercent, parsePercent } from '../tax/percent.js';
   has no jurisdiction and a rate of "7.0", and it must land on the same report row as the "VT" / "7"
   that the same sale would produce today, or one place appears twice.
 */
-const placeOf = part => part.jurisdiction || part.state || part.country || '—';
+/*
+  The entry itself records where the sale went, so a jurisdiction row with no place in it at all —
+  the earliest Stripe entries — still lands on the right one rather than on a blank.
+*/
+const stateOf = (part, entry) => part.state || entry.state || '';
 
-const levelOf = part => part.level || (part.state ? 'state' : part.country ? 'country' : '');
+const countryOf = (part, entry) => part.country || entry.country || '';
+
+const placeOf = (part, entry) => part.jurisdiction || stateOf(part, entry) || countryOf(part, entry) || '—';
+
+const levelOf = (part, entry) => part.level || (stateOf(part, entry) ? 'state' : countryOf(part, entry) ? 'country' : '');
 
 const rateOf = part => {
   const micro = parsePercent(String(part.rate ?? ''));
@@ -80,14 +88,16 @@ export const buildReport = (entries, { from = null, to = null } = {}) => {
     apply(bucket.months.get(month));
 
     for(const part of entry.jurisdictions || []){
-      const jurisdiction = placeOf(part);
-      const level = levelOf(part);
+      const jurisdiction = placeOf(part, entry);
+      const level = levelOf(part, entry);
       const rate = rateOf(part);
-      const key = [part.country, part.state, level, jurisdiction, rate].join('|');
+      const country = countryOf(part, entry);
+      const state = stateOf(part, entry);
+      const key = [country, state, level, jurisdiction, rate].join('|');
       if(!bucket.jurisdictions.has(key)){
         bucket.jurisdictions.set(key, {
-          country: part.country,
-          state: part.state,
+          country,
+          state,
           level,
           jurisdiction,
           rate,
