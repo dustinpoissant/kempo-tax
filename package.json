@@ -13,7 +13,8 @@
   "exports": {
     "./install": "./install.js",
     "./update": "./update.js",
-    "./sdk": "./sdk.js"
+    "./sdk": "./sdk.js",
+    "./uninstall": "./uninstall.js"
   },
   "files": [
     "admin",
@@ -23,14 +24,16 @@
     "update.js",
     "sdk.js",
     "kempo-config.json",
-    "PLAN.md"
+    "PLAN.md",
+    "uninstall.js"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dustinpoissant/kempo-tax.git"
   },
   "dependencies": {
-    "stripe": "^22.5.0"
+    "stripe": "^22.5.0",
+    "drizzle-orm": "^0.45.2"
   },
   "peerDependencies": {
     "kempo": ">=4.5.8",
@@ -39,9 +42,9 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
-    "drizzle-orm": "^0.45.2",
     "kempo-testing-framework": "^1.4.11",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "drizzle-kit": "^0.31.10"
   },
   "allowScripts": {
     "esbuild@0.18.20": true,

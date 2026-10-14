@@ -1,5 +1,6 @@
 import { activeProvider } from '../../providers/index.js';
 import { readConfig } from '../config/settings.js';
+import { saveQuote } from '../ledger/quotes.js';
 import { emptyCalculation, hasBillableAmount, parseRequest } from './shape.js';
 
 /*
@@ -9,7 +10,7 @@ import { emptyCalculation, hasBillableAmount, parseRequest } from './shape.js';
   import { calculateTax } from 'kempo-tax/sdk';
 
   const [error, result] = await calculateTax({
-    address: { country: 'US', state: 'CA', postalCode: '94103' },
+    address: { country: 'US', state: 'VT', postalCode: '05401' },
     lines: [
       { amount: 4999, reference: 'sku-1', taxClass: 'physical' },
       { amount: 1500, reference: 'sku-2', quantity: 3, taxClass: 'digital' },
@@ -20,11 +21,13 @@ import { emptyCalculation, hasBillableAmount, parseRequest } from './shape.js';
   // result.total  — the amount to charge, which is what createPayment takes
   ```
 
-  This is a *quote*. It is safe to call as often as the page changes, and nothing is reported to a
-  tax authority until the sale is recorded with `recordTransaction`.
+  This is a *quote*. It is safe to call as often as the page changes, and nothing is reported
+  anywhere until the sale is recorded with `recordTransaction`. The result's `calculationId` is
+  what that call takes: this site keeps what it worked out, and records from that, never from
+  figures handed back to it.
 
-  A site that has not connected Stripe gets a 409 rather than a silent zero. A silent zero is the
-  worse failure: a checkout that quietly stops charging tax for a week because a key expired is a
+  A provider that is not connected gets a 409 rather than a silent zero. A silent zero is the worse
+  failure: a checkout that quietly stops charging tax for a week because a key expired is a
   liability that grows with every order, while a loud one is fixed the same afternoon.
 */
 export default async input => {
@@ -33,8 +36,7 @@ export default async input => {
   const [requestError, request] = parseRequest(input, {
     currency: config.currency,
     includesTax: config.includesTax,
-    taxCode: config.taxCode,
-    shippingTaxCode: config.shippingTaxCode,
+    taxClass: config.taxClass,
   });
   if(requestError) return [requestError, null];
 
@@ -43,5 +45,20 @@ export default async input => {
 
   if(!hasBillableAmount(request)) return [null, emptyCalculation(request)];
 
-  return provider.calculate(request);
+  const [error, result] = await provider.calculate(request);
+  if(error) return [error, null];
+
+  const providerRef = result.calculationId;
+
+  const [saveError, quoteId] = await saveQuote({
+    provider: result.provider,
+    providerRef,
+    currency: result.currency,
+    result,
+    address: request.address,
+    expiresAt: result.expiresAt ? new Date(result.expiresAt) : undefined,
+  });
+  if(saveError) return [saveError, null];
+
+  return [null, { ...result, calculationId: quoteId, providerCalculationId: providerRef || null }];
 };

@@ -1,8 +1,9 @@
 import { setSetting } from 'kempo/server/sdk.js';
 import { getProvider, listProviders } from '../../../server/providers/index.js';
-import { OWNER, TAX_CODE, readConfig } from '../../../server/utils/config/settings.js';
+import { OWNER, ROUNDING, normaliseCountry, readConfig } from '../../../server/utils/config/settings.js';
 import { typeOf, descriptionOf, DECLARED_SETTINGS } from '../../../server/utils/config/declared.js';
 import { isValidCurrency, normaliseCurrency } from '../../../server/utils/tax/shape.js';
+import { isKnownClass } from '../../../server/utils/rates/validate.js';
 import { gate } from '../../../server/utils/permissions/gate.js';
 
 /*
@@ -28,8 +29,13 @@ export const SAVEABLE = [
   'provider',
   'currency',
   'prices_include_tax',
-  'default_tax_code',
-  'shipping_tax_code',
+  'default_tax_class',
+  'home_country',
+  'home_state',
+  'home_city',
+  'home_postal',
+  'rounding',
+  'origin_sourcing_states',
   ...listProviders().flatMap(provider => provider.credentialFields.map(field => field.name)),
 ];
 
@@ -62,14 +68,31 @@ export default async (request, response) => {
     updates.prices_include_tax = body.prices_include_tax;
   }
 
-  for(const name of ['default_tax_code', 'shipping_tax_code']){
-    if(body[name] === undefined) continue;
-
-    const value = String(body[name] ?? '').trim();
-    if(value && !TAX_CODE.test(value)){
-      return response.status(400).json({ error: 'A tax category looks like txcd_99999999 — pick one from the list, or leave it blank' });
+  if(body.default_tax_class !== undefined){
+    const value = String(body.default_tax_class ?? '').trim().toLowerCase();
+    if(!isKnownClass(value) || value === '*'){
+      return response.status(400).json({ error: 'The default tax class must be one of the named classes, or a txcd_ code' });
     }
-    updates[name] = value;
+    updates.default_tax_class = value;
+  }
+
+  if(body.home_country !== undefined){
+    const value = String(body.home_country ?? '').trim();
+    if(value && !normaliseCountry(value)) return response.status(400).json({ error: 'Home country must be a two-letter code, such as US' });
+    updates.home_country = normaliseCountry(value);
+  }
+
+  for(const name of ['home_state', 'home_city', 'home_postal', 'origin_sourcing_states']){
+    if(body[name] === undefined) continue;
+    const max = name === 'origin_sourcing_states' ? 200 : 100;
+    updates[name] = String(body[name] ?? '').trim().slice(0, max);
+  }
+
+  if(body.rounding !== undefined){
+    if(!ROUNDING.includes(String(body.rounding))){
+      return response.status(400).json({ error: `Rounding must be one of: ${ROUNDING.join(', ')}` });
+    }
+    updates.rounding = String(body.rounding);
   }
 
   for(const provider of listProviders()){

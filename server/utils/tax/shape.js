@@ -50,6 +50,24 @@ export const resolveTaxCode = value => {
   return [{ code: 400, msg: `Unknown tax class "${trimmed.slice(0, 40)}". Use one of ${Object.keys(TAX_CLASSES).join(', ')}, or a Stripe tax code such as txcd_99999999` }, null];
 };
 
+/*
+  Like `resolveTaxCode`, but keeps the *name*. A rate table is keyed by class name ("physical"),
+  while Stripe wants the category id, so both have to survive parsing. A raw id that is one of the
+  named classes comes back under its name; any other id is its own name.
+
+  `[null, null]` still means "the caller did not say".
+*/
+const CLASS_BY_CODE = Object.fromEntries(Object.entries(TAX_CLASSES).map(([name, code]) => [code, name]));
+
+export const resolveTaxClass = value => {
+  const [error, code] = resolveTaxCode(value);
+  if(error || code === null) return [error, null];
+
+  const trimmed = value.trim();
+  const named = Object.hasOwn(TAX_CLASSES, trimmed.toLowerCase()) ? trimmed.toLowerCase() : null;
+  return [null, { name: named || CLASS_BY_CODE[code] || code, code }];
+};
+
 export const isTaxBehavior = value => TAX_BEHAVIORS.includes(value);
 
 /*
@@ -126,7 +144,7 @@ export const parseTaxIds = input => {
 /*
   The request
 
-  `defaults` is what the settings say: { currency, includesTax, taxCode, shippingTaxCode }.
+  `defaults` is what the settings say: { currency, includesTax, taxClass }.
 
   A line with an amount of 0 is kept in the answer — a caller zipping results back onto its cart by
   position must not find one missing — but is never sent, because Stripe rejects a zero amount and
@@ -156,6 +174,14 @@ export const parseRequest = (input, defaults = {}) => {
     return [{ code: 400, msg: 'A calculation takes at most 250 lines' }, null];
   }
 
+  /*
+    One default class serves every provider: a name ("physical") is what a rate table matches on,
+    and the category id behind it is what Stripe is sent. Resolving it once here means a line that
+    names nothing carries both.
+  */
+  const [defaultClassError, defaultClass] = resolveTaxClass(defaults.taxClass);
+  if(defaultClassError) return [{ code: 500, msg: `The default tax class setting is not valid: ${defaultClassError.msg}` }, null];
+
   const defaultBehavior = defaults.includesTax ? 'inclusive' : 'exclusive';
   const lines = [];
   const seen = new Set();
@@ -178,7 +204,7 @@ export const parseRequest = (input, defaults = {}) => {
     if(seen.has(reference)) return [{ code: 400, msg: `Line ${index + 1}: reference "${reference}" is used twice` }, null];
     seen.add(reference);
 
-    const [codeError, taxCode] = resolveTaxCode(line.taxClass ?? line.taxCode);
+    const [codeError, resolved] = resolveTaxClass(line.taxClass ?? line.taxCode);
     if(codeError) return [{ code: codeError.code, msg: `Line ${index + 1}: ${codeError.msg}` }, null];
 
     const taxBehavior = line.taxBehavior === undefined ? defaultBehavior : line.taxBehavior;
@@ -186,7 +212,15 @@ export const parseRequest = (input, defaults = {}) => {
       return [{ code: 400, msg: `Line ${index + 1}: taxBehavior must be one of ${TAX_BEHAVIORS.join(', ')}` }, null];
     }
 
-    lines.push({ index, reference, amount: line.amount, quantity, taxCode: taxCode || defaults.taxCode || null, taxBehavior });
+    lines.push({
+      index,
+      reference,
+      amount: line.amount,
+      quantity,
+      taxCode: resolved?.code || defaultClass?.code || null,
+      taxClass: resolved?.name || defaultClass?.name || null,
+      taxBehavior,
+    });
   }
 
   let shipping = null;
@@ -195,13 +229,18 @@ export const parseRequest = (input, defaults = {}) => {
       return [{ code: 400, msg: "Shipping amount must be a whole number of the currency's smallest unit" }, null];
     }
 
-    const [codeError, taxCode] = resolveTaxCode(input.shipping.taxClass ?? input.shipping.taxCode);
+    const [codeError, resolved] = resolveTaxClass(input.shipping.taxClass ?? input.shipping.taxCode);
     if(codeError) return [{ code: codeError.code, msg: `Shipping: ${codeError.msg}` }, null];
 
     const taxBehavior = input.shipping.taxBehavior === undefined ? defaultBehavior : input.shipping.taxBehavior;
     if(!isTaxBehavior(taxBehavior)) return [{ code: 400, msg: `Shipping: taxBehavior must be one of ${TAX_BEHAVIORS.join(', ')}` }, null];
 
-    shipping = { amount: input.shipping.amount, taxCode: taxCode || defaults.shippingTaxCode || null, taxBehavior };
+    shipping = {
+      amount: input.shipping.amount,
+      taxCode: resolved?.code || TAX_CLASSES.shipping,
+      taxClass: resolved?.name || 'shipping',
+      taxBehavior,
+    };
   }
 
   const taxDate = input.taxDate === undefined ? null : Number(input.taxDate);
@@ -280,9 +319,33 @@ const breakdownFrom = entry => ({
   reason: entry.taxability_reason || null,
 });
 
+/*
+  One line of a result, in the same shape whichever provider produced it.
+
+  `netAmount` is the amount *without* tax in it: for a tax-inclusive line that is the amount less
+  the tax inside it. It is what a return reports as sales, so it is computed here once rather than
+  by every report.
+
+  `status` is the part a return cares about. A line with tax on it was `taxed`. One with none, in a
+  place the site collects, was `exempt` (zero-rated, or an exempt product) and is reported as such.
+  One in a place the site is not registered was `not_collecting`, and appears on no return at all.
+*/
+export const lineResult = (line, tax, collecting) => ({
+  reference: line.reference ?? '__shipping__',
+  amount: line.amount,
+  quantity: line.quantity ?? 1,
+  tax,
+  netAmount: line.taxBehavior === 'inclusive' ? line.amount - tax : line.amount,
+  taxBehavior: line.taxBehavior,
+  taxCode: line.taxCode || null,
+  taxClass: line.taxClass || null,
+  status: line.amount === 0 ? 'zero' : tax > 0 ? 'taxed' : collecting ? 'exempt' : 'not_collecting',
+});
+
 export const fromCalculation = (calculation, request) => {
   const returned = new Map((calculation.line_items?.data || []).map(item => [item.reference, item]));
   const breakdown = (calculation.tax_breakdown || []).map(breakdownFrom);
+  const collecting = breakdown.length > 0 && breakdown.some(entry => !NOT_COLLECTING.has(entry.reason));
 
   return {
     provider: 'stripe',
@@ -294,22 +357,13 @@ export const fromCalculation = (calculation, request) => {
     taxAmountInclusive: calculation.tax_amount_inclusive ?? 0,
     tax: (calculation.tax_amount_exclusive ?? 0) + (calculation.tax_amount_inclusive ?? 0),
     total: calculation.amount_total ?? 0,
-    collecting: breakdown.length > 0 && breakdown.some(entry => !NOT_COLLECTING.has(entry.reason)),
+    collecting,
     lines: request.lines.map(line => {
       const item = returned.get(line.reference);
-      return {
-        reference: line.reference,
-        amount: line.amount,
-        quantity: line.quantity,
-        tax: item?.amount_tax ?? 0,
-        taxBehavior: line.taxBehavior,
-        taxCode: line.taxCode,
-      };
+      return lineResult(line, item?.amount_tax ?? 0, collecting);
     }),
     shipping: request.shipping ? {
-      amount: request.shipping.amount,
-      tax: calculation.shipping_cost?.amount_tax ?? 0,
-      taxBehavior: request.shipping.taxBehavior,
+      ...lineResult({ ...request.shipping, quantity: 1 }, calculation.shipping_cost?.amount_tax ?? 0, collecting),
     } : null,
     breakdown,
   };
@@ -329,14 +383,7 @@ export const emptyCalculation = request => ({
   tax: 0,
   total: request.lines.reduce((sum, line) => sum + line.amount, 0) + (request.shipping?.amount || 0),
   collecting: false,
-  lines: request.lines.map(line => ({
-    reference: line.reference,
-    amount: line.amount,
-    quantity: line.quantity,
-    tax: 0,
-    taxBehavior: line.taxBehavior,
-    taxCode: line.taxCode,
-  })),
-  shipping: request.shipping ? { amount: request.shipping.amount, tax: 0, taxBehavior: request.shipping.taxBehavior } : null,
+  lines: request.lines.map(line => lineResult(line, 0, false)),
+  shipping: request.shipping ? lineResult({ ...request.shipping, quantity: 1 }, 0, false) : null,
   breakdown: [],
 });

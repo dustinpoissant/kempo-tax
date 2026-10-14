@@ -98,8 +98,15 @@ export default class TaxSettings extends ShadowComponent {
       provider: this.values.provider,
       currency: this.values.currency,
       prices_include_tax: !!this.values.includesTax,
-      default_tax_code: this.values.taxCode,
-      shipping_tax_code: this.values.shippingTaxCode,
+      default_tax_class: this.values.taxClass,
+      home_country: this.values.homeCountry,
+      home_state: this.values.homeState,
+      home_city: this.values.homeCity,
+      home_postal: this.values.homePostal,
+      rounding: this.values.rounding,
+      origin_sourcing_states: Array.isArray(this.values.originSourcingStates)
+        ? this.values.originSourcingStates.join(',')
+        : this.values.originSourcingStates,
     };
 
     // Only what was actually typed, so "blank means unchanged" holds at the wire.
@@ -139,6 +146,15 @@ export default class TaxSettings extends ShadowComponent {
             <code class="ff-mono">node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"</code>,
             put it in the site’s environment, and restart. Back it up — losing it makes every stored secret unrecoverable.
           </p>
+        </div>
+      `;
+    }
+
+    if(this.values.provider === 'rates'){
+      return html`
+        <div class="card banner tc-success">
+          <strong>Using the rate table.</strong>
+          <p class="small">No external service is involved. Tax comes from the rows on the Rates tab, so it is only as current as you keep them.</p>
         </div>
       `;
     }
@@ -188,22 +204,6 @@ export default class TaxSettings extends ShadowComponent {
     });
   }
 
-  #renderCodePicker(label, help, name){
-    return html`
-      <label class="field">
-        <span class="d-b">${label}</span>
-        <span class="small tc-muted d-b">${help}</span>
-        ${this.codes.length ? html`
-          <select .value=${this.values[name]} @change=${event => this.set(name, event.target.value)}>
-            <option value="" ?selected=${!this.values[name]}>Stripe’s own default</option>
-            ${this.codes.map(code => html`<option value=${code.id} ?selected=${code.id === this.values[name]}>${code.name} (${code.id})</option>`)}
-          </select>
-        ` : html`
-          <input type="text" placeholder="txcd_…" .value=${this.values[name]} @input=${event => this.set(name, event.target.value)} />
-        `}
-      </label>
-    `;
-  }
 
   render(){
     if(!this.loaded) return html`<k-spinner></k-spinner>`;
@@ -223,6 +223,18 @@ export default class TaxSettings extends ShadowComponent {
 
       ${this.#renderCredentials()}
 
+      <h2>Where you are based</h2>
+      <p class="small tc-muted">
+        Used to warn you when a sale at home is recorded with no tax collected — the case that makes a return short without
+        anything looking wrong. Use the same codes your checkout sends for the address (such as VT).
+      </p>
+      <div class="row">
+        <label class="field"><span class="d-b">Country</span>
+          <input type="text" maxlength="2" placeholder="US" .value=${this.values.homeCountry || ''} @input=${event => this.set('homeCountry', event.target.value)} /></label>
+        <label class="field"><span class="d-b">State / region</span>
+          <input type="text" placeholder="VT" .value=${this.values.homeState || ''} @input=${event => this.set('homeState', event.target.value)} /></label>
+      </div>
+
       <h2>Defaults</h2>
       <label class="field">
         <span class="d-b">Currency</span>
@@ -241,8 +253,30 @@ export default class TaxSettings extends ShadowComponent {
         </span>
       </label>
 
-      ${this.#renderCodePicker('Default tax category', 'For an item whose caller names none. Whether it is taxable, and at what rate, is decided per place by Stripe.', 'taxCode')}
-      ${this.#renderCodePicker('Shipping tax category', 'For shipping charges. Blank uses Stripe’s shipping category.', 'shippingTaxCode')}
+      <label class="field">
+        <span class="d-b">Default tax class</span>
+        <span class="small tc-muted d-b">
+          For an item whose caller names none — a class name such as <span class="ff-mono">physical</span>, or a Stripe
+          category id. Whether it is taxable, and at what rate, is decided per place. Shipping uses its own class.
+        </span>
+        <input type="text" list="tax-classes" .value=${this.values.taxClass || ''} @input=${event => this.set('taxClass', event.target.value)} />
+        <datalist id="tax-classes">
+          ${['physical', 'digital', 'saas', 'saas-business', 'nontaxable'].map(name => html`<option value=${name}></option>`)}
+          ${this.codes.map(code => html`<option value=${code.id}>${code.name}</option>`)}
+        </datalist>
+      </label>
+
+      <label class="field">
+        <span class="d-b">Rounding</span>
+        <span class="small tc-muted d-b">
+          <em>Each line</em> rounds the tax on every line. <em>Whole invoice</em> rounds once per tax layer and spreads it back
+          over the lines. Use whichever your tax authority's instructions describe (rate table only).
+        </span>
+        <select .value=${this.values.rounding} @change=${event => this.set('rounding', event.target.value)}>
+          <option value="line" ?selected=${this.values.rounding === 'line'}>Each line</option>
+          <option value="invoice" ?selected=${this.values.rounding === 'invoice'}>Whole invoice</option>
+        </select>
+      </label>
 
       <button class="primary" ?disabled=${this.saving} @click=${this.save}>${this.saving ? 'Saving…' : 'Save settings'}</button>
     `;
@@ -253,6 +287,7 @@ export default class TaxSettings extends ShadowComponent {
     .banner { margin-bottom: var(--spacer); }
     .banner p { margin-bottom: 0; }
     .field { margin-bottom: var(--spacer); max-width: 40rem; }
+    .row { display: flex; flex-wrap: wrap; gap: var(--spacer); }
   `;
 }
 

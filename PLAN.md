@@ -1,8 +1,9 @@
 # kempo-tax — PLAN: rate table provider, ledger and reports
 
-> Status: **v0.1 exists** (Stripe Tax lookup, see README). This file scopes what comes next. The
-> existing code is the reference for style; read `server/providers/index.js` and
-> `server/utils/tax/shape.js` before changing anything.
+> Status: **built (this plan is implemented).** The rate table provider, the ledger, reports, the
+> home-state quick start, rate CSV import/export, the home-sale warning and the uninstall warning
+> are all in. Two items remain and are listed under "Outstanding" at the end of this file. The text
+> below is kept as the design record — read it before changing the behaviour it describes.
 
 > **Upstream changes are allowed.** Every dependency with `kempo` in its name (kempo, kempo-ui,
 > kempo-css, kempo-server, kempo-payments, kempo-media, and the rest) is owned by the same person, and
@@ -156,3 +157,19 @@ Follow `~/dev/kempo/AGENTS.md` and `~/dev/kempo-payments`. Specifically:
 - Uninstall warns and export works.
 - Home wizard and rate editor loaded and checked in a browser.
 - README and CHANGELOG updated. Published as a **minor** version.
+
+## Outstanding
+
+Not done, and not possible from a development checkout:
+
+- **Run the Stripe provider against a live test-mode account.** It has only been written against
+  the SDK's types and tested for request/response shaping. The manual procedure is in the README.
+- **Verify every `txcd_` id behind the class names** (especially `saas` and `saas-business`)
+  against Stripe's own list at `/tax/api/tax-codes`. They were written from memory.
+
+Deliberately left for later:
+
+- Exemption certificates and resale handling.
+- A third provider (TaxJar, Avalara).
+- An origin-sourcing rule richer than "the seller's own state, from the seller's own address".
+- Fiscal-year periods as a first-class choice (a custom range does the job today).

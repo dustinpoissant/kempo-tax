@@ -43,3 +43,42 @@ export const listTaxCodes = () => request('/tax-codes');
 export const getSettings = () => request('/settings');
 
 export const saveSettings = body => request('/settings', json('PUT', body));
+
+/*
+  The rate table
+*/
+
+export const listRates = (params = {}) => {
+  const search = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''));
+  return request(`/rates${search.toString() ? `?${search}` : ''}`);
+};
+
+export const createRate = body => request('/rates', json('POST', body));
+
+export const updateRate = (id, body) => request(`/rate/${id}`, json('PUT', body));
+
+export const deleteRate = id => request(`/rate/${id}`, { method: 'DELETE' });
+
+export const importRates = csv => request('/rate-import', json('POST', { csv }));
+
+export const quickStart = answers => request('/rate-quickstart', json('POST', answers));
+
+/*
+  The ledger and reports. The export routes return files, so they are links, not calls.
+*/
+
+export const listLedger = (params = {}) => {
+  const search = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''));
+  return request(`/ledger${search.toString() ? `?${search}` : ''}`);
+};
+
+export const getReport = (params = {}) => {
+  const search = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''));
+  return request(`/reports${search.toString() ? `?${search}` : ''}`);
+};
+
+export const exportUrls = {
+  rates: `${BASE}/rate-export`,
+  ledger: params => `${BASE}/ledger-export${params && Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''}`,
+  report: params => `${BASE}/report-export${params && Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''}`,
+};

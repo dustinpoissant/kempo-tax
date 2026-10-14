@@ -103,9 +103,15 @@ export default {
   },
 
   'a line with no class falls back to the configured default': async ({ pass, fail }) => {
-    const parsed = parse(request({ shipping: { amount: 500 } }), { taxCode: 'txcd_10000000', shippingTaxCode: 'txcd_92010001' });
-    if(parsed.lines[0].taxCode !== 'txcd_10000000') return fail('line did not take the default');
-    if(parsed.shipping.taxCode !== 'txcd_92010001') return fail('shipping did not take its default');
+    const named = parse(request({ shipping: { amount: 500 } }), { taxClass: 'digital' });
+    if(named.lines[0].taxClass !== 'digital' || named.lines[0].taxCode !== TAX_CLASSES.digital) return fail('a default class name should carry its category id');
+    if(named.shipping.taxCode !== TAX_CLASSES.shipping || named.shipping.taxClass !== 'shipping') return fail('shipping should use its own class');
+
+    const raw = parse(request(), { taxClass: 'txcd_10103000' });
+    if(raw.lines[0].taxCode !== 'txcd_10103000' || raw.lines[0].taxClass !== 'saas') return fail('a default category id should come back under its class name');
+
+    const [bad] = parseRequest(request(), { taxClass: 'phsyical' });
+    if(!bad) return fail('an invalid default should be refused loudly, not ignored');
     pass('');
   },
 
@@ -168,6 +174,37 @@ export default {
     if(!result.collecting) return fail('a standard-rated breakdown means tax is being collected');
     if(result.breakdown[0].rate !== '7.25' || result.breakdown[0].jurisdiction !== 'California') return fail('breakdown not mapped');
     if(!/^\d{4}-/.test(result.expiresAt)) return fail('expiry should be an ISO date');
+    pass('');
+  },
+
+  'a Stripe result becomes a ledger entry with the same three-way split': async ({ pass, fail }) => {
+    const { entryFromResult } = await import('../server/utils/ledger/entries.js');
+    const parsed = parse(request({ lines: [{ amount: 5000, reference: 'a' }, { amount: 1000, reference: 'b' }], shipping: { amount: 800 } }));
+
+    const result = fromCalculation({
+      id: 'taxcalc_9',
+      currency: 'usd',
+      amount_total: 6800 + 363,
+      tax_amount_exclusive: 363,
+      tax_amount_inclusive: 0,
+      line_items: { data: [{ reference: 'a', amount_tax: 363 }, { reference: 'b', amount_tax: 0 }] },
+      shipping_cost: { amount_tax: 0 },
+      tax_breakdown: [{
+        amount: 363,
+        taxable_amount: 5000,
+        taxability_reason: 'standard_rated',
+        jurisdiction: { display_name: 'California', level: 'state', country: 'US', state: 'CA' },
+        tax_rate_details: { display_name: 'Sales tax', percentage_decimal: '7.25', tax_type: 'sales_tax' },
+      }],
+    }, parsed);
+
+    // Where the site collects, a line with no tax on it was exempt — not "not collecting".
+    if(result.lines[1].status !== 'exempt') return fail(`zero-tax line status was ${result.lines[1].status}`);
+    if(result.lines[0].status !== 'taxed' || result.lines[0].netAmount !== 5000) return fail('taxed line wrong');
+
+    const entry = entryFromResult(result, { address: { country: 'US', state: 'CA', postal_code: '94103' }, reference: 'o1', occurredAt: new Date() });
+    if(entry.taxableAmount !== 5000 || entry.exemptAmount !== 1800 || entry.uncollectedAmount !== 0) return fail(`split ${entry.taxableAmount}/${entry.exemptAmount}/${entry.uncollectedAmount}`);
+    if(entry.salesAmount + entry.taxAmount !== result.total) return fail('sales + tax should equal the total charged');
     pass('');
   },
 

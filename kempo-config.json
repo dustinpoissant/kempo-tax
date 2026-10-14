@@ -3,17 +3,37 @@
   "git": "https://github.com/dustinpoissant/kempo-tax",
   "public-scope": "tax",
   "permissions": [
-    { "name": "tax:view", "description": "See whether tax is connected, where tax is being collected, and the tax categories available" },
-    { "name": "tax:calculate", "description": "Ask what tax is owed on a set of items over the API" },
-    { "name": "tax:record", "description": "Record a completed sale for tax reporting, or reverse one that was refunded" },
-    { "name": "tax:settings", "description": "Change the tax provider, its API key and the default tax category" }
+    {
+      "name": "tax:view",
+      "description": "See whether tax is connected, where tax is being collected, and the rate table"
+    },
+    {
+      "name": "tax:calculate",
+      "description": "Ask what tax is owed on a set of items over the API"
+    },
+    {
+      "name": "tax:record",
+      "description": "Record a completed sale in the tax ledger, or reverse one that was refunded"
+    },
+    {
+      "name": "tax:rates",
+      "description": "Add, edit and end the rates in the rate table, and run the home-state quick start"
+    },
+    {
+      "name": "tax:reports",
+      "description": "See the tax ledger and the reports built from it, and export them"
+    },
+    {
+      "name": "tax:settings",
+      "description": "Change the tax provider, its API key, the home location and the defaults"
+    }
   ],
   "settings": [
     {
       "name": "provider",
       "value": "stripe",
       "type": "string",
-      "description": "Which service works out the tax. Only 'stripe' ships today"
+      "description": "Which engine works out the tax: 'rates' (a table you maintain) or 'stripe' (Stripe Tax)"
     },
     {
       "name": "currency",
@@ -28,41 +48,85 @@
       "description": "Whether the prices passed in already contain tax (VAT-style). Off means tax is added on top (US-style)"
     },
     {
-      "name": "default_tax_code",
-      "value": "",
-      "type": "string",
-      "description": "The Stripe tax category (txcd_…) used for an item that does not name one. Blank uses the default set in the Stripe dashboard"
-    },
-    {
-      "name": "shipping_tax_code",
-      "value": "",
-      "type": "string",
-      "description": "The Stripe tax category used for shipping charges. Blank uses Stripe's own shipping category"
-    },
-    {
       "name": "stripe_secret_key",
       "value": "",
       "type": "secret",
       "description": "Stripe secret key (sk_test_… or sk_live_…). Encrypted at rest and never sent to a browser. Blank falls back to the key kempo-payments holds, if it is installed"
+    },
+    {
+      "name": "default_tax_class",
+      "value": "physical",
+      "type": "string",
+      "description": "The tax class used for an item whose caller names none: a class name (physical, digital, saas…) or a Stripe txcd_ code. Used by every provider"
+    },
+    {
+      "name": "home_country",
+      "value": "",
+      "type": "string",
+      "description": "Two-letter country code of where you are based, such as US. Used to warn when a sale at home is recorded with no tax collected"
+    },
+    {
+      "name": "home_state",
+      "value": "",
+      "type": "string",
+      "description": "State or region you are based in, as the same code your checkout sends (such as VT)"
+    },
+    {
+      "name": "home_city",
+      "value": "",
+      "type": "string",
+      "description": "City you are based in. Only used for origin-sourced states"
+    },
+    {
+      "name": "home_postal",
+      "value": "",
+      "type": "string",
+      "description": "Postal code you are based in. Only used for origin-sourced states"
+    },
+    {
+      "name": "rounding",
+      "value": "line",
+      "type": "string",
+      "description": "How tax is rounded: 'line' rounds each line's tax, 'invoice' rounds once per tax layer for the whole sale"
+    },
+    {
+      "name": "origin_sourcing_states",
+      "value": "",
+      "type": "string",
+      "description": "Comma-separated states that tax a sale to the seller's own state by where the seller is, not where the buyer is. Leave blank for destination sourcing"
     }
   ],
   "groups": [
     {
       "name": "kempo-tax:viewer",
-      "description": "Can see whether tax is connected and where it is being collected, without being able to change anything",
+      "description": "Can see whether tax is connected, the rate table, the ledger and the reports, without being able to change anything",
       "permissions": [
-        "tax:view"
+        "tax:view",
+        "tax:reports"
+      ]
+    },
+    {
+      "name": "kempo-tax:bookkeeper",
+      "description": "Everything a viewer can do, plus recording and reversing sales — what an accountant or an order system acts as",
+      "permissions": [
+        "tax:view",
+        "tax:reports",
+        "tax:calculate",
+        "tax:record"
       ]
     },
     {
       "name": "kempo-tax:administrator",
-      "description": "Everything a viewer can do, plus connecting the site to Stripe and changing the defaults",
+      "description": "Everything, including the rate table, the provider and its key",
       "permissions": [
         "tax:view",
         "tax:calculate",
         "tax:record",
+        "tax:rates",
+        "tax:reports",
         "tax:settings"
       ]
     }
-  ]
+  ],
+  "schema": "./server/db/schema.js"
 }
