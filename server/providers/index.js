@@ -1,12 +1,13 @@
 import * as stripe from './stripe.js';
+import * as rates from './rates.js';
 import { getSetting } from 'kempo/server/sdk.js';
 import { DEFAULTS, OWNER } from '../utils/config/settings.js';
 
 /*
   The registry, and the contract a tax provider module implements.
 
-  Only Stripe Tax ships. The abstraction is here anyway, from the first commit, for the same reason
-  it is in kempo-payments: the alternative is every call site growing a direct dependency on one
+  Two providers ship: Stripe Tax, and a rate table the site owner maintains. The abstraction is
+  here anyway, from the first commit, for the same reason it is in kempo-payments: the alternative is every call site growing a direct dependency on one
   company's SDK, and adding TaxJar or Avalara becomes a change to the whole extension instead of a
   file in this directory.
 
@@ -29,11 +30,15 @@ import { DEFAULTS, OWNER } from '../utils/config/settings.js';
   server/utils/tax/shape.js. Mapping into it is the provider module's job, precisely so the rest of
   the extension has one shape rather than one per service.
 
-  Roadmap providers — TaxJar, Avalara, and a plain rate table for a seller who has one jurisdiction
-  and no wish to depend on a service — each become one more file here.
+  Roadmap providers — TaxJar, Avalara — each become one more file here.
+
+  The provider performs the *calculation* and any call to a third party. It does not keep the
+  ledger: the code that calls `recordTransaction` and `reverseTransaction` writes the ledger for
+  every provider alike (see server/utils/tax/transactions.js), so a provider's record and report
+  functions can be no-ops, as the rate table's are.
 */
 
-const PROVIDERS = new Map([[stripe.name, stripe]]);
+const PROVIDERS = new Map([[stripe.name, stripe], [rates.name, rates]]);
 
 export const listProviders = () => [...PROVIDERS.values()].map(provider => ({
   name: provider.name,

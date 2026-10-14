@@ -105,6 +105,15 @@ export default class TaxRegistrations extends ShadowComponent {
       `;
     }
 
+    if(this.status.provider === 'rates' && !this.registrations.length){
+      return html`
+        <div class="card banner tc-warning">
+          <strong>The rate table is empty, so no tax is being collected anywhere.</strong>
+          <p class="small">Use the quick start on the Rates tab to add the rate for the place you collect in.</p>
+        </div>
+      `;
+    }
+
     if(!this.registrations.length){
       return html`
         <div class="card banner tc-warning">
@@ -122,7 +131,7 @@ export default class TaxRegistrations extends ShadowComponent {
       <div class="card banner ${this.status.livemode ? 'tc-danger' : 'tc-success'}">
         <strong>
           ${this.status.livemode
-            ? 'Connected in live mode — tax is collected for real.'
+            ? (this.status.provider === 'rates' ? 'Collecting from the rate table.' : 'Connected in live mode — tax is collected for real.')
             : 'Connected in test mode. Nothing here is reported to anyone.'}
         </strong>
       </div>
@@ -156,9 +165,10 @@ export default class TaxRegistrations extends ShadowComponent {
       ` : ''}
 
       <p class="small tc-muted">
-        Registrations are managed in the
-        <a href="https://dashboard.stripe.com/tax/registrations" target="_blank" rel="noopener">Stripe dashboard</a>.
-        This extension only looks things up and reports; it does not register you with, or file
+        ${this.status?.provider === 'rates'
+          ? html`These are the places that have a rate in your rate table.`
+          : html`Registrations are managed in the <a href="https://dashboard.stripe.com/tax/registrations" target="_blank" rel="noopener">Stripe dashboard</a>.`}
+        This extension only works out tax and keeps a record; it does not register you with, or file
         returns to, any tax authority.
       </p>
     `;

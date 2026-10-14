@@ -171,6 +171,37 @@ export default {
     pass('');
   },
 
+  'a Stripe result becomes a ledger entry with the same three-way split': async ({ pass, fail }) => {
+    const { entryFromResult } = await import('../server/utils/ledger/entries.js');
+    const parsed = parse(request({ lines: [{ amount: 5000, reference: 'a' }, { amount: 1000, reference: 'b' }], shipping: { amount: 800 } }));
+
+    const result = fromCalculation({
+      id: 'taxcalc_9',
+      currency: 'usd',
+      amount_total: 6800 + 363,
+      tax_amount_exclusive: 363,
+      tax_amount_inclusive: 0,
+      line_items: { data: [{ reference: 'a', amount_tax: 363 }, { reference: 'b', amount_tax: 0 }] },
+      shipping_cost: { amount_tax: 0 },
+      tax_breakdown: [{
+        amount: 363,
+        taxable_amount: 5000,
+        taxability_reason: 'standard_rated',
+        jurisdiction: { display_name: 'California', level: 'state', country: 'US', state: 'CA' },
+        tax_rate_details: { display_name: 'Sales tax', percentage_decimal: '7.25', tax_type: 'sales_tax' },
+      }],
+    }, parsed);
+
+    // Where the site collects, a line with no tax on it was exempt — not "not collecting".
+    if(result.lines[1].status !== 'exempt') return fail(`zero-tax line status was ${result.lines[1].status}`);
+    if(result.lines[0].status !== 'taxed' || result.lines[0].netAmount !== 5000) return fail('taxed line wrong');
+
+    const entry = entryFromResult(result, { address: { country: 'US', state: 'CA', postal_code: '94103' }, reference: 'o1', occurredAt: new Date() });
+    if(entry.taxableAmount !== 5000 || entry.exemptAmount !== 1800 || entry.uncollectedAmount !== 0) return fail(`split ${entry.taxableAmount}/${entry.exemptAmount}/${entry.uncollectedAmount}`);
+    if(entry.salesAmount + entry.taxAmount !== result.total) return fail('sales + tax should equal the total charged');
+    pass('');
+  },
+
   'a breakdown that is all not_collecting is reported as not collecting': async ({ pass, fail }) => {
     const parsed = parse(request());
     const result = fromCalculation({
