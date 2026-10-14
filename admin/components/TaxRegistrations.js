@@ -78,7 +78,7 @@ export default class TaxRegistrations extends ShadowComponent {
       return html`
         <div class="card banner tc-warning">
           <strong>Not connected.</strong>
-          <p class="small">No tax can be looked up until a Stripe secret key is saved under Settings.</p>
+          <p >No tax can be looked up until a Stripe secret key is saved under Settings.</p>
         </div>
       `;
     }
@@ -87,7 +87,7 @@ export default class TaxRegistrations extends ShadowComponent {
       return html`
         <div class="card banner tc-danger">
           <strong>Stripe would not talk to this key.</strong>
-          <p class="small">${this.accountError}</p>
+          <p >${this.accountError}</p>
         </div>
       `;
     }
@@ -96,7 +96,7 @@ export default class TaxRegistrations extends ShadowComponent {
       return html`
         <div class="card banner tc-warning">
           <strong>Stripe Tax is not switched on for this account yet.</strong>
-          <p class="small">
+          <p >
             Open Tax in the Stripe dashboard and finish the setup${this.account?.missingFields?.length
               ? html` — it still needs: <span class="ff-mono">${this.account.missingFields.join(', ')}</span>`
               : ''}.
@@ -109,7 +109,7 @@ export default class TaxRegistrations extends ShadowComponent {
       return html`
         <div class="card banner tc-warning">
           <strong>The rate table is empty, so no tax is being collected anywhere.</strong>
-          <p class="small">Use the quick start on the Rates tab to add the rate for the place you collect in.</p>
+          <p >Use the quick start on the Rates tab to add the rate for the place you collect in.</p>
         </div>
       `;
     }
@@ -118,7 +118,7 @@ export default class TaxRegistrations extends ShadowComponent {
       return html`
         <div class="card banner tc-warning">
           <strong>Connected, but registered nowhere — so no tax is being collected.</strong>
-          <p class="small">
+          <p >
             That is correct until a sales threshold is crossed or an obligation begins. Calculations
             still return the rate that <em>would</em> apply, marked as not collecting. Add a
             registration in the Stripe dashboard when you need to charge tax somewhere.
@@ -128,7 +128,7 @@ export default class TaxRegistrations extends ShadowComponent {
     }
 
     return html`
-      <div class="card banner ${this.status.livemode ? 'tc-danger' : 'tc-success'}">
+      <div class="card banner ${this.status.livemode && this.status.provider !== 'rates' ? 'tc-danger' : 'tc-success'}">
         <strong>
           ${this.status.livemode
             ? (this.status.provider === 'rates' ? 'Collecting from the rate table.' : 'Connected in live mode — tax is collected for real.')
@@ -164,7 +164,7 @@ export default class TaxRegistrations extends ShadowComponent {
         </table>
       ` : ''}
 
-      <p class="small tc-muted">
+      <p class="tc-muted">
         ${this.status?.provider === 'rates'
           ? html`These are the places that have a rate in your rate table.`
           : html`Registrations are managed in the <a href="https://dashboard.stripe.com/tax/registrations" target="_blank" rel="noopener">Stripe dashboard</a>.`}

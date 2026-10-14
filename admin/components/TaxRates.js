@@ -219,7 +219,7 @@ export default class TaxRates extends ShadowComponent {
     return html`
       <div class="card">
         <h2>Quick start</h2>
-        <p class="small tc-muted">
+        <p class="tc-muted">
           Answer five questions and the matching rows are created for you — real rows, which you can then edit.
           <strong>Get the rate from your tax authority</strong>; this does not look it up or guess it.
         </p>
@@ -263,13 +263,13 @@ export default class TaxRates extends ShadowComponent {
 
     return html`
       ${this.error ? html`<p class="tc-danger">${this.error}</p>` : ''}
-      ${this.notice ? html`<p class="tc-success small">${this.notice}</p>` : ''}
+      ${this.notice ? html`<p class="tc-success">${this.notice}</p>` : ''}
 
       ${this.editing ? this.#renderEditor() : ''}
       ${!this.rates.length && !this.editing ? this.#renderQuickStart() : ''}
 
       ${this.rates.length ? html`
-        <p class="small tc-muted">
+        <p class="tc-muted">
           Rates stack by level: the most specific row at each level applies, and the levels add. To change a rate going
           forward, <strong>end</strong> the old row and add a new one — a sale quoted last month keeps last month's rate.
         </p>
@@ -285,12 +285,12 @@ export default class TaxRates extends ShadowComponent {
                 <td>${rate.level}</td>
                 <td>${rate.kind === 'exempt' ? html`<em>exempt</em>` : `${rate.rate}%`}</td>
                 <td>${rate.appliesToShipping ? 'yes' : ''}</td>
-                <td class="small">${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}</td>
+                <td >${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}</td>
                 <td>${rate.jurisdiction}</td>
                 <td>
-                  <button class="link small" @click=${() => { this.editing = { ...rate }; }}>Edit</button>
-                  ${rate.effectiveTo ? '' : html`<button class="link small" @click=${() => this.end(rate)}>End</button>`}
-                  <button class="link small tc-danger" @click=${() => this.remove(rate)}>Delete</button>
+                  <button class="link" @click=${() => { this.editing = { ...rate }; }}>Edit</button>
+                  ${rate.effectiveTo ? '' : html`<button class="link" @click=${() => this.end(rate)}>End</button>`}
+                  <button class="link tc-danger" @click=${() => this.remove(rate)}>Delete</button>
                 </td>
               </tr>
             `)}
@@ -306,7 +306,7 @@ export default class TaxRates extends ShadowComponent {
 
       ${this.importing ? html`
         <div class="card">
-          <p class="small tc-muted">
+          <p class="tc-muted">
             Columns: country, state, locality, postalPattern, taxClass, level, kind, rate, appliesToShipping, taxType,
             jurisdiction, label, priority, enabled, effectiveFrom, effectiveTo, note. Only country and rate are required.
             It only adds rows, and if any row is wrong nothing is added.
@@ -318,7 +318,7 @@ export default class TaxRates extends ShadowComponent {
 
       ${this.rates.length && !this.editing ? html`
         <details>
-          <summary class="small tc-muted">Run the quick start again</summary>
+          <summary class="tc-muted">Run the quick start again</summary>
           ${this.#renderQuickStart()}
         </details>
       ` : ''}

@@ -106,15 +106,15 @@ export default class TaxReports extends ShadowComponent {
     return html`
       <h2>${currency.toUpperCase()}</h2>
       <div class="cards">
-        <div class="card"><span class="small tc-muted d-b">Tax collected</span><strong>${money(t.taxCollected)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Tax reversed (refunds)</span><strong>${money(t.taxReversed)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Net tax owed</span><strong>${money(t.taxNet)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Sales</span><strong>${money(t.sales)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Taxable sales</span><strong>${money(t.taxable)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Exempt sales</span><strong>${money(t.exempt)}</strong></div>
-        <div class="card"><span class="small tc-muted d-b">Not collected</span><strong>${money(t.uncollected)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Tax collected</span><strong>${money(t.taxCollected)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Tax reversed (refunds)</span><strong>${money(t.taxReversed)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Net tax owed</span><strong>${money(t.taxNet)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Sales</span><strong>${money(t.sales)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Taxable sales</span><strong>${money(t.taxable)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Exempt sales</span><strong>${money(t.exempt)}</strong></div>
+        <div class="card"><span class="tc-muted d-b">Not collected</span><strong>${money(t.uncollected)}</strong></div>
       </div>
-      <p class="small tc-muted">${t.salesCount} sale${t.salesCount === 1 ? '' : 's'}, ${t.reversalsCount} refund${t.reversalsCount === 1 ? '' : 's'}.
+      <p class="tc-muted">${t.salesCount} sale${t.salesCount === 1 ? '' : 's'}, ${t.reversalsCount} refund${t.reversalsCount === 1 ? '' : 's'}.
         <em>Not collected</em> is sold where this site has no rate — it appears on no return.</p>
 
       ${data.jurisdictions.length ? html`
@@ -166,12 +166,12 @@ export default class TaxReports extends ShadowComponent {
         ` : html`
           <input type="date" .value=${this.from} @input=${event => { this.from = event.target.value; }} />
           <input type="date" .value=${this.to} @input=${event => { this.to = event.target.value; }} />
-          <span class="small tc-muted">to is exclusive</span>
+          <span class="tc-muted">to is exclusive</span>
         `}
         <button class="primary" ?disabled=${this.loading} @click=${this.run}>${this.loading ? 'Loading…' : 'Run report'}</button>
       </div>
 
-      <p class="small tc-muted">
+      <p class="tc-muted">
         A record of what this site collected — <strong>not a tax return</strong>. File and pay on your tax authority's own
         portal. A refund counts in the period it happened in.
       </p>
@@ -183,15 +183,15 @@ export default class TaxReports extends ShadowComponent {
       ${currencies.map(([currency, data]) => this.#renderCurrency(currency, data))}
 
       ${this.entries.length ? html`
-        <h2>Ledger <span class="small tc-muted">(${this.entries.length} of ${this.total})</span></h2>
+        <h2>Ledger <span class="tc-muted">(${this.entries.length} of ${this.total})</span></h2>
         <table>
           <thead><tr><th>When</th><th>Kind</th><th>Reference</th><th>Place</th><th>Sales</th><th>Tax</th></tr></thead>
           <tbody>
             ${this.entries.map(entry => html`
               <tr>
-                <td class="small">${new Date(entry.occurredAt).toLocaleString()}</td>
+                <td >${new Date(entry.occurredAt).toLocaleString()}</td>
                 <td>${entry.kind}</td>
-                <td class="ff-mono small">${entry.reference}</td>
+                <td class="ff-mono">${entry.reference}</td>
                 <td>${[entry.country, entry.state].filter(Boolean).join(' ')}</td>
                 <td>${this.#money(entry.salesAmount, entry.currency)}</td>
                 <td>${this.#money(entry.taxAmount, entry.currency)}</td>
@@ -204,7 +204,7 @@ export default class TaxReports extends ShadowComponent {
         <a class="button secondary" href=${exportUrls.ledger(this.report ? { from: this.report.from || '', to: this.report.to || '' } : {})}>Export this period's ledger (CSV)</a>
         <a class="button secondary" href=${exportUrls.ledger({})}>Export the whole ledger</a>
       </p>
-      <p class="small tc-muted">
+      <p class="tc-muted">
         The ledger is your legal record of tax collected. It is deleted if this extension is uninstalled —
         export it first.
       </p>

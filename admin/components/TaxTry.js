@@ -88,7 +88,7 @@ export default class TaxTry extends ShadowComponent {
 
   render(){
     return html`
-      <p class="small tc-muted">A quote only — nothing is recorded or reported.</p>
+      <p class="tc-muted">A quote only — nothing is recorded or reported.</p>
 
       <div class="grid">
         ${this.#field('Country', 'country', { placeholder: 'US' })}
@@ -128,7 +128,7 @@ export default class TaxTry extends ShadowComponent {
                   <td>${entry.rate === null ? '—' : `${entry.rate}%`}</td>
                   <td>${this.#money(entry.taxableAmount)}</td>
                   <td>${this.#money(entry.amount)}</td>
-                  <td class="small">${entry.reason}</td>
+                  <td >${entry.reason}</td>
                 </tr>
               `)}
             </tbody>
