@@ -1,3 +1,5 @@
+import { formatPercent, parsePercent } from './percent.js';
+
 /*
   Turning what a caller hands in into what a provider needs, and what a provider answers into one
   vocabulary — with no network and no database anywhere in this file.
@@ -305,14 +307,34 @@ export const toStripeParams = request => ({
 */
 const NOT_COLLECTING = new Set(['not_collecting', 'not_supported']);
 
+/*
+  What Stripe actually returns for a breakdown, found by running it against a live account rather
+  than from the type definitions: a calculation names a place only by `state` and `country` inside
+  `tax_rate_details`, there is no jurisdiction object and no per-line breakdown, and the layers of
+  a place are **combined** into one row — Vermont's 6% and Burlington's 1% arrive as a single 7.0.
+
+  So the jurisdiction is the state (or the country, where there is none), at level `state` or
+  `country`, and the rate is the combined one. A per-layer breakdown is what the rate table gives;
+  with Stripe a return can only be broken down as far as Stripe says. The fields are read
+  defensively, so a version that does send a jurisdiction object is used as sent.
+*/
+const place = entry => entry.jurisdiction?.state || entry.tax_rate_details?.state || entry.jurisdiction?.country || entry.tax_rate_details?.country || null;
+
+const normalisedRate = value => {
+  const micro = parsePercent(String(value ?? ''));
+  return micro === null ? (value ?? null) : formatPercent(micro);
+};
+
 const breakdownFrom = entry => ({
-  jurisdiction: entry.jurisdiction?.display_name || null,
-  level: entry.jurisdiction?.level || null,
-  country: entry.jurisdiction?.country || null,
-  state: entry.jurisdiction?.state || null,
+  jurisdiction: entry.jurisdiction?.display_name || place(entry),
+  level: entry.jurisdiction?.level
+    || (entry.tax_rate_details?.state || entry.jurisdiction?.state ? 'state' : place(entry) ? 'country' : null),
+  country: entry.jurisdiction?.country || entry.tax_rate_details?.country || null,
+  state: entry.jurisdiction?.state || entry.tax_rate_details?.state || null,
   taxType: entry.tax_rate_details?.tax_type || null,
-  name: entry.tax_rate_details?.display_name || null,
-  rate: entry.tax_rate_details?.percentage_decimal ?? null,
+  name: entry.tax_rate_details?.display_name
+    || [place(entry), entry.tax_rate_details?.tax_type?.replace(/_/g, ' ')].filter(Boolean).join(' ') || null,
+  rate: normalisedRate(entry.tax_rate_details?.percentage_decimal),
   taxableAmount: entry.taxable_amount ?? 0,
   amount: entry.amount ?? 0,
   inclusive: !!entry.inclusive,

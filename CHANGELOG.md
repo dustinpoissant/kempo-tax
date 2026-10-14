@@ -45,12 +45,18 @@ All notable changes to `kempo-tax` are documented in this file.
   and the id Stripe is sent. Shipping always uses its own `shipping` class. An unusable default is
   refused loudly rather than ignored.
 
-### Not yet verified
+### Verified
 
-The Stripe module is written against the installed SDK's own type definitions and its request and
-response shaping is covered by tests. It has **not** been exercised against a live Stripe account —
-that needs a key with Stripe Tax switched on. The README has a manual procedure. The ids behind the
-`saas` and `saas-business` classes should be checked against Stripe's own list before use.
+The Stripe provider was run against a live test-mode account: calculate (registered and
+unregistered), record, idempotent re-record, partial and full reversal (each found at Stripe), and a
+report that nets to zero. All six class ids were checked against Stripe's own tax code list.
+
+### Fixed by that run
+
+- A Stripe breakdown names a place only by `state` and `country` and carries no jurisdiction
+  object, so reports grouped on `null`. It is now named by its state, at level `state`, with the rate
+  normalised (`7.0` → `7`).
+- A reversal now keeps Stripe's own transaction id, so it can be found at Stripe from the ledger.
 
 ## 0.1.0
 

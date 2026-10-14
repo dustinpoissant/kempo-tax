@@ -65,7 +65,7 @@ export const entryFromResult = (result, { address = {}, reference, occurredAt, q
   by largest remainder. So a reversal always satisfies `sales + tax = -amount` exactly, which is
   what lets "how much of this sale is left to reverse" be answered with plain subtraction.
 */
-export const reversalFromEntry = (original, { amount, reference, occurredAt, note }) => {
+export const reversalFromEntry = (original, { amount, reference, occurredAt, note, providerRef }) => {
   const total = original.salesAmount + original.taxAmount;
   const whole = amount === undefined || amount === null;
 
@@ -106,7 +106,7 @@ export const reversalFromEntry = (original, { amount, reference, occurredAt, not
     reference,
     originalEntryId: original.id,
     provider: original.provider,
-    providerRef: null,
+    providerRef: providerRef || null,
     quoteId: original.quoteId,
     livemode: original.livemode,
     currency: original.currency,

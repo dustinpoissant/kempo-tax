@@ -208,6 +208,32 @@ export default {
     pass('');
   },
 
+  'a breakdown as Stripe really sends it, with no jurisdiction object, is named by its state': async ({ pass, fail }) => {
+    const parsed = parse(request());
+    const result = fromCalculation({
+      id: 'taxcalc_real',
+      currency: 'usd',
+      amount_total: 5349,
+      tax_amount_exclusive: 350,
+      tax_amount_inclusive: 0,
+      line_items: { data: [{ reference: 'a', amount_tax: 350 }] },
+      // Captured from a live test-mode calculation: no jurisdiction, combined rate, "7.0" not "7".
+      tax_breakdown: [
+        { amount: 350, inclusive: false, taxable_amount: 5000, taxability_reason: 'standard_rated',
+          tax_rate_details: { country: 'US', state: 'VT', percentage_decimal: '7.0', rate_type: 'percentage', tax_type: 'sales_tax', flat_amount: null } },
+        { amount: 0, inclusive: false, taxable_amount: 0, taxability_reason: 'not_collecting',
+          tax_rate_details: { country: 'US', state: 'VT', percentage_decimal: '0.0', rate_type: 'percentage', tax_type: 'sales_tax', flat_amount: null } },
+      ],
+    }, parsed);
+
+    const [taxed] = result.breakdown;
+    if(taxed.jurisdiction !== 'VT' || taxed.level !== 'state') return fail(`named ${taxed.jurisdiction} / ${taxed.level}`);
+    if(taxed.rate !== '7') return fail(`rate should be normalised to 7, got ${taxed.rate}`);
+    if(taxed.state !== 'VT' || taxed.country !== 'US') return fail('state and country missing');
+    if(!result.collecting) return fail('a standard-rated entry means collecting');
+    pass('a report groups on VT, not on null');
+  },
+
   'a breakdown that is all not_collecting is reported as not collecting': async ({ pass, fail }) => {
     const parsed = parse(request());
     const result = fromCalculation({

@@ -178,16 +178,18 @@ export const reverseTransaction = async ({ transactionId, reference, amount, occ
   */
   const reverseAmount = amount || (reversed > 0 ? remaining : undefined);
 
+  let providerReversalRef = null;
   if(original.provider !== 'rates' && original.providerRef){
     const [providerError, provider] = getProvider(original.provider);
     if(providerError) return [providerError, null];
 
-    const [error] = await provider.reverseTransaction({
+    const [error, reversal] = await provider.reverseTransaction({
       transactionId: original.providerRef,
       reference: cleaned,
       amount: reverseAmount,
     });
     if(error) return [error, null];
+    providerReversalRef = reversal.transactionId;
   }
 
   const entry = reversalFromEntry(original, {
@@ -195,6 +197,7 @@ export const reverseTransaction = async ({ transactionId, reference, amount, occ
     reference: cleaned,
     occurredAt: occurredAt ? new Date(occurredAt) : new Date(),
     note,
+    providerRef: providerReversalRef,
   });
 
   const [insertError, saved] = await insertEntry(entry);

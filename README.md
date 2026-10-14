@@ -316,22 +316,30 @@ should refuse to complete.
 and Avalara are the intended extensibility targets — each a new file there, not a change to
 anything that ever called `calculateTax`.
 
-### Verifying the Stripe provider
+### Stripe Tax, as it actually behaves
 
-The Stripe module is written against the installed SDK's own type definitions and its request and
-response shaping is covered by tests, but **the default test run never calls Stripe**, and it has
-not been exercised against a live account in this repository. Before relying on it:
+Verified against a live **test-mode** Stripe account on 2026-10-14: a calculation for a registered
+state, an unregistered one, recording a sale and finding the transaction at Stripe under the same
+reference, idempotent re-recording, a partial reversal and the remainder (each found at Stripe,
+pointing at the sale), a refused over-reversal, and a report that nets to zero. The default test run
+never calls Stripe; to repeat the check yourself, use a test-mode key from an account with Stripe Tax
+switched on and a head office address, add a test registration, and run a calculation, a record and
+a reversal through the API.
 
-1. Use a **test-mode** key from an account with Stripe Tax switched on, and a head office address.
-2. On **Settings**, save the key, set provider to Stripe, and open the **Where tax is collected**
-   tab — it should report the account as active.
-3. Add a test registration for a place in the dashboard, then **Try a calculation** for an address
-   there. Expect `collecting: true` and a rate. For an unregistered place expect `collecting: false`.
-4. Record the sale through the API and confirm the transaction appears under *Tax > Transactions* in
-   the Stripe dashboard, then reverse it.
-5. Open **Settings** and compare each class name against the category Stripe lists
-   (`GET /tax/api/tax-codes`). The ids behind `saas` and `saas-business` in particular should be
-   checked before selling under them.
+Things that only a live run showed, and that are worth knowing:
+
+- **Stripe combines the layers of a place into one rate.** Vermont's 6% and a town's 1% arrive as a
+  single `7.0`, with no jurisdiction names, so a Stripe-backed report groups by state (`VT`, rate
+  `7`). The rate table is what gives a per-layer breakdown.
+- **Stripe taxes shipping in proportion to the goods.** With $49.99 taxable and $10 exempt, only
+  that share of an $8 shipping charge is taxed. A rate-table `appliesToShipping` row taxes shipping
+  in full or not at all, so for a state that works proportionally the two will differ by a few cents.
+- **Stripe returns a rate for any address and `not_collecting` outside your registrations**, which
+  is what `collecting` reports.
+- **The six class names resolve to the right categories.** Each id was checked against Stripe's own
+  list of 677 codes: `txcd_99999999` General - Tangible Goods, `txcd_10000000` Electronically
+  Supplied Services, `txcd_10103000` / `txcd_10103001` SaaS personal / business use,
+  `txcd_00000000` Nontaxable, `txcd_92010001` Shipping.
 
 ## Not here
 
