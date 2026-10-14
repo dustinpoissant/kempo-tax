@@ -118,6 +118,24 @@ export default {
     pass('');
   },
 
+  'an entry recorded before breakdowns were named lands on the same row as one recorded today': async ({ pass, fail }) => {
+    const legacy = sale({
+      id: 10,
+      reference: 'old',
+      jurisdictions: [{ jurisdiction: null, level: null, country: 'US', state: 'VT', rate: '7.0', taxableAmount: 5000, amount: 350, reason: 'standard_rated' }],
+    });
+    const current = sale({
+      id: 11,
+      reference: 'new',
+      jurisdictions: [{ jurisdiction: 'VT', level: 'state', country: 'US', state: 'VT', rate: '7', taxableAmount: 5000, amount: 350, reason: 'standard_rated' }],
+    });
+
+    const rows = buildReport([legacy, current], {}).currencies.usd.jurisdictions;
+    if(rows.length !== 1) return fail(`expected one row, got ${rows.length}: ${rows.map(row => row.jurisdiction + ':' + row.rate).join(', ')}`);
+    if(rows[0].jurisdiction !== 'VT' || rows[0].rate !== '7' || rows[0].taxAmount !== 700) return fail(JSON.stringify(rows[0]));
+    pass('');
+  },
+
   'quarters are calendar quarters in UTC with an exclusive end': async ({ pass, fail }) => {
     const q = quarterRange(2026, 4);
     if(q.from !== '2026-10-01T00:00:00.000Z' || q.to !== '2027-01-01T00:00:00.000Z') return fail(`Q4 was ${q.from} to ${q.to}`);

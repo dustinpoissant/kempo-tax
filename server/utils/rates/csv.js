@@ -15,6 +15,7 @@ export const RATE_COLUMNS = [
   { key: 'kind' },
   { key: 'rate' },
   { key: 'appliesToShipping' },
+  { key: 'shippingProportional' },
   { key: 'taxType' },
   { key: 'jurisdiction' },
   { key: 'label' },

@@ -117,9 +117,21 @@ is different: it says "sold here, no tax", and it is reported on a return as an 
 | `rate` | A percentage with up to four decimals: `6`, `7.25`, `6.625` |
 | `level` | `country`, `state`, `county`, `city`, `district` or `special` — worked out from the place if left blank |
 | `appliesToShipping` | Whether this row taxes shipping charges. Shipping is only taxed by rows that say so |
+| `shippingProportional` | With `appliesToShipping`: tax shipping only in proportion to the taxable goods. See below |
 | `effectiveFrom` / `effectiveTo` | `YYYY-MM-DD`. `effectiveTo` is exclusive |
 | `jurisdiction`, `label` | The name a report uses, and the name a receipt may show |
 | `priority`, `enabled`, `note` | |
+
+### Shipping
+
+A row with `appliesToShipping` taxes the shipping charge **in full**. Add `shippingProportional` and
+it taxes only the share of shipping that matches the taxable goods in the order: with $49.99 of
+taxable goods, $10.00 of exempt goods and $8.00 of shipping, five-sixths of the shipping is taxed.
+Which one applies is your tax authority's rule, and some states work proportionally. Stripe does for
+Vermont, which is why this exists: the two providers agree to the cent on the same cart.
+
+Proportional applies to tax added on top. A tax-inclusive shipping charge is taxed in full, because
+the tax already inside a price cannot be split by what else was bought.
 
 ### A rate is ended, not edited
 
@@ -332,8 +344,11 @@ Things that only a live run showed, and that are worth knowing:
   single `7.0`, with no jurisdiction names, so a Stripe-backed report groups by state (`VT`, rate
   `7`). The rate table is what gives a per-layer breakdown.
 - **Stripe taxes shipping in proportion to the goods.** With $49.99 taxable and $10 exempt, only
-  that share of an $8 shipping charge is taxed. A rate-table `appliesToShipping` row taxes shipping
-  in full or not at all, so for a state that works proportionally the two will differ by a few cents.
+  that share of an $8 shipping charge is taxed. Give the rate table's shipping rows
+  `shippingProportional` and the two agree: a head-to-head of 21 carts across Burlington,
+  Montpelier and Rutland (goods, mixed carts, digital, SaaS, odd cents, shipping) matched Stripe to
+  the cent once the table held the same rows. Where they differed it was data — a local-option town
+  that was not in the table — not arithmetic.
 - **Stripe returns a rate for any address and `not_collecting` outside your registrations**, which
   is what `collecting` reports.
 - **The six class names resolve to the right categories.** Each id was checked against Stripe's own

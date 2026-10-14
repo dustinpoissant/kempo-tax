@@ -180,6 +180,57 @@ export default {
     pass('');
   },
 
+  'proportional shipping taxes the share of shipping that matches the taxable goods — the same figure Stripe returned': async ({ pass, fail }) => {
+    // Captured from a live Stripe test-mode calculation for exactly this cart: Vermont, 7% combined,
+    // $49.99 taxable goods + $10.00 exempt goods + $8.00 shipping gave 350 + 0 + 47.
+    const rows = [
+      row({ taxClass: 'physical', rateMicro: parsePercent('7') }),
+      row({ taxClass: 'nontaxable', kind: 'exempt', rateMicro: 0 }),
+      row({ taxClass: 'shipping', rateMicro: parsePercent('7'), appliesToShipping: true, shippingProportional: true }),
+    ];
+    const result = calc(rows, {
+      lines: [
+        { amount: 4999, reference: 'car', taxClass: 'physical' },
+        { amount: 1000, reference: 'gift', taxClass: 'nontaxable' },
+      ],
+      shipping: { amount: 800 },
+    });
+
+    if(result.lines[0].tax !== 350) return fail(`goods tax ${result.lines[0].tax}`);
+    if(result.shipping.tax !== 47) return fail(`shipping tax ${result.shipping.tax}, Stripe said 47`);
+    if(result.tax !== 397) return fail(`total tax ${result.tax}, Stripe said 397`);
+    pass('the two providers agree to the cent on this cart');
+  },
+
+  'proportional shipping is full when every good is taxable and nothing when none is': async ({ pass, fail }) => {
+    const rows = [
+      row({ taxClass: 'physical' }),
+      row({ taxClass: 'nontaxable', kind: 'exempt', rateMicro: 0 }),
+      row({ taxClass: 'shipping', appliesToShipping: true, shippingProportional: true }),
+    ];
+
+    const all = calc(rows, { lines: [{ amount: 10000, reference: 'a', taxClass: 'physical' }], shipping: { amount: 1000 } });
+    if(all.shipping.tax !== 60) return fail(`all taxable: shipping tax ${all.shipping.tax}, expected the full 60`);
+
+    const none = calc(rows, { lines: [{ amount: 10000, reference: 'a', taxClass: 'nontaxable' }], shipping: { amount: 1000 } });
+    if(none.shipping.tax !== 0) return fail(`nothing taxable: shipping tax ${none.shipping.tax}, expected 0`);
+    pass('');
+  },
+
+  'a row without the proportional flag still taxes shipping in full': async ({ pass, fail }) => {
+    const rows = [
+      row({ taxClass: 'physical' }),
+      row({ taxClass: 'nontaxable', kind: 'exempt', rateMicro: 0 }),
+      row({ taxClass: 'shipping', appliesToShipping: true }),
+    ];
+    const result = calc(rows, {
+      lines: [{ amount: 4999, reference: 'car', taxClass: 'physical' }, { amount: 1000, reference: 'gift', taxClass: 'nontaxable' }],
+      shipping: { amount: 800 },
+    });
+    if(result.shipping.tax !== 48) return fail(`full-rate shipping tax was ${result.shipping.tax}, expected 48`);
+    pass('');
+  },
+
   'a tax-inclusive line has its tax taken out of the amount, not added': async ({ pass, fail }) => {
     const result = calc([row({ taxClass: 'physical', rateMicro: parsePercent('20') })], {
       lines: [{ amount: 12000, reference: 'a', taxClass: 'physical', taxBehavior: 'inclusive' }],

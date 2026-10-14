@@ -123,7 +123,7 @@ export default class TaxReports extends ShadowComponent {
           <tbody>
             ${data.jurisdictions.map(row => html`
               <tr>
-                <td>${row.jurisdiction}${row.state ? ` (${row.state})` : ''}</td>
+                <td>${row.jurisdiction}${row.state && row.state !== row.jurisdiction ? ` (${row.state})` : ''}</td>
                 <td>${row.level}</td>
                 <td>${row.rate ?? ''}%</td>
                 <td>${money(row.taxableAmount)}</td>
@@ -185,13 +185,14 @@ export default class TaxReports extends ShadowComponent {
       ${this.entries.length ? html`
         <h2>Ledger <span class="tc-muted">(${this.entries.length} of ${this.total})</span></h2>
         <table>
-          <thead><tr><th>When</th><th>Kind</th><th>Reference</th><th>Place</th><th>Sales</th><th>Tax</th></tr></thead>
+          <thead><tr><th>When</th><th>Kind</th><th>Reference</th><th>Provider</th><th>Place</th><th>Sales</th><th>Tax</th></tr></thead>
           <tbody>
             ${this.entries.map(entry => html`
               <tr>
                 <td >${new Date(entry.occurredAt).toLocaleString()}</td>
                 <td>${entry.kind}</td>
                 <td class="ff-mono">${entry.reference}</td>
+                <td>${entry.provider}</td>
                 <td>${[entry.country, entry.state].filter(Boolean).join(' ')}</td>
                 <td>${this.#money(entry.salesAmount, entry.currency)}</td>
                 <td>${this.#money(entry.taxAmount, entry.currency)}</td>

@@ -51,12 +51,22 @@ The Stripe provider was run against a live test-mode account: calculate (registe
 unregistered), record, idempotent re-record, partial and full reversal (each found at Stripe), and a
 report that nets to zero. All six class ids were checked against Stripe's own tax code list.
 
+### Added after that run
+
+- **Proportional shipping.** A rate row can tax shipping in proportion to the taxable goods
+  (`shippingProportional`, a checkbox on the rate form, and a "Is shipping taxed?" question in the
+  quick start). Matches what Stripe returns for Vermont. Installed sites get the new column from
+  `update.js`.
+- A `Provider` column in the ledger list.
+
 ### Fixed by that run
 
 - A Stripe breakdown names a place only by `state` and `country` and carries no jurisdiction
   object, so reports grouped on `null`. It is now named by its state, at level `state`, with the rate
   normalised (`7.0` → `7`).
 - A reversal now keeps Stripe's own transaction id, so it can be found at Stripe from the ledger.
+- Reports read old ledger rows defensively: an entry recorded before breakdowns were named (no
+  jurisdiction, rate `7.0`) lands on the same row as the same sale recorded today (`VT`, `7`).
 
 ## 0.1.0
 

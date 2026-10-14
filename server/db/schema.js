@@ -35,6 +35,13 @@ export const kempoTaxRate = pgTable('kempoTaxRate', {
   kind: text('kind').notNull().default('taxable'),
   rateMicro: integer('rateMicro').notNull().default(0),
   appliesToShipping: boolean('appliesToShipping').notNull().default(false),
+
+  /*
+    How shipping is taxed by a row that applies to it. Off, shipping is taxed in full. On, it is
+    taxed in proportion to the goods that are taxable: $50 of taxable goods and $10 of exempt ones
+    tax five-sixths of the shipping charge. Some states work this way, and Stripe does.
+  */
+  shippingProportional: boolean('shippingProportional').notNull().default(false),
   taxType: text('taxType').notNull().default('sales_tax'),
 
   /*

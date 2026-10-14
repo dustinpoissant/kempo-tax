@@ -171,19 +171,42 @@ export const calculateWithRates = (request, rows, options = {}) => {
     return { item, layers, taxable, totalMicro: taxable.reduce((sum, row) => sum + row.rateMicro, 0) };
   });
 
+  /*
+    How much of the goods is taxable, for a shipping row that taxes shipping in proportion. Free
+    lines are not goods here, and shipping is never part of its own share.
+  */
+  const goods = resolved.filter(entry => !entry.item.isShipping && entry.item.amount > 0);
+  const goodsTotal = goods.reduce((sum, entry) => sum + entry.item.amount, 0);
+  const goodsTaxable = goods.filter(entry => entry.taxable.length).reduce((sum, entry) => sum + entry.item.amount, 0);
+
   // 2. The tax for each (item, layer).
   const shares = resolved.map(entry => entry.taxable.map(row => {
     const inclusive = entry.item.taxBehavior === 'inclusive';
-    return {
-      row,
-      inclusive,
-      exact: inclusive
-        ? { numerator: BigInt(entry.item.amount) * BigInt(row.rateMicro), denominator: BigInt(ONE + entry.totalMicro) }
-        : { numerator: BigInt(entry.item.amount) * BigInt(row.rateMicro), denominator: BigInt(ONE) },
-      tax: inclusive
-        ? taxInclusive(entry.item.amount, row.rateMicro, entry.totalMicro)
-        : taxExclusive(entry.item.amount, row.rateMicro),
-    };
+
+    /*
+      Proportional shipping applies to tax added on top. A tax-inclusive shipping charge is taxed
+      in full, because the share of tax already inside a price cannot be split by what else was
+      bought; the README says so.
+    */
+    const proportional = entry.item.isShipping && row.shippingProportional && !inclusive;
+
+    let exact;
+    let tax;
+    if(inclusive){
+      exact = { numerator: BigInt(entry.item.amount) * BigInt(row.rateMicro), denominator: BigInt(ONE + entry.totalMicro) };
+      tax = taxInclusive(entry.item.amount, row.rateMicro, entry.totalMicro);
+    } else if(proportional){
+      exact = {
+        numerator: BigInt(entry.item.amount) * BigInt(row.rateMicro) * BigInt(goodsTaxable),
+        denominator: BigInt(ONE) * BigInt(Math.max(goodsTotal, 1)),
+      };
+      tax = roundDiv(exact.numerator, exact.denominator);
+    } else {
+      exact = { numerator: BigInt(entry.item.amount) * BigInt(row.rateMicro), denominator: BigInt(ONE) };
+      tax = taxExclusive(entry.item.amount, row.rateMicro);
+    }
+
+    return { row, inclusive, exact, tax };
   }));
 
   // 3. Invoice rounding: one rounded figure per layer, spread back over the lines that used it.

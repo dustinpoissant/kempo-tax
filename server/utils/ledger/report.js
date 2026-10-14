@@ -1,3 +1,5 @@
+import { formatPercent, parsePercent } from '../tax/percent.js';
+
 /*
   The numbers a return asks for, built from ledger entries. Pure.
 
@@ -11,6 +13,21 @@
 
   Figures are grouped by currency first, because adding 100 JPY to 100 GBP produces 200 of nothing.
 */
+
+/*
+  A ledger row is permanent, and the code that wrote it may be older than the code reading it. So a
+  jurisdiction is read defensively: an entry recorded before Stripe's breakdown was named by state
+  has no jurisdiction and a rate of "7.0", and it must land on the same report row as the "VT" / "7"
+  that the same sale would produce today, or one place appears twice.
+*/
+const placeOf = part => part.jurisdiction || part.state || part.country || '—';
+
+const levelOf = part => part.level || (part.state ? 'state' : part.country ? 'country' : '');
+
+const rateOf = part => {
+  const micro = parsePercent(String(part.rate ?? ''));
+  return micro === null ? (part.rate ?? '') : formatPercent(micro);
+};
 
 const empty = () => ({
   sales: 0,
@@ -63,14 +80,17 @@ export const buildReport = (entries, { from = null, to = null } = {}) => {
     apply(bucket.months.get(month));
 
     for(const part of entry.jurisdictions || []){
-      const key = [part.country, part.state, part.level, part.jurisdiction, part.rate].join('|');
+      const jurisdiction = placeOf(part);
+      const level = levelOf(part);
+      const rate = rateOf(part);
+      const key = [part.country, part.state, level, jurisdiction, rate].join('|');
       if(!bucket.jurisdictions.has(key)){
         bucket.jurisdictions.set(key, {
           country: part.country,
           state: part.state,
-          level: part.level,
-          jurisdiction: part.jurisdiction,
-          rate: part.rate,
+          level,
+          jurisdiction,
+          rate,
           taxableAmount: 0,
           taxAmount: 0,
         });

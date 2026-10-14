@@ -65,8 +65,18 @@ export const quickstartRows = input => {
 
   for(const taxClass of exempt) add({ taxClass, kind: 'exempt' });
 
-  if(input.shippingTaxable){
-    add({ taxClass: 'shipping', kind: 'taxable', rate: input.stateRate, appliesToShipping: true }, 'shipping');
+  /*
+    `shippingTaxable` is the older boolean. `shipping` is one of none, full, proportional: whether
+    delivery charges are taxed at all, in full, or only in proportion to the taxable goods.
+  */
+  const shipping = input.shipping || (input.shippingTaxable ? 'full' : 'none');
+  if(!['none', 'full', 'proportional'].includes(shipping)){
+    return [{ code: 400, msg: 'Shipping must be none, full or proportional' }, null];
+  }
+  const proportional = shipping === 'proportional';
+
+  if(shipping !== 'none'){
+    add({ taxClass: 'shipping', kind: 'taxable', rate: input.stateRate, appliesToShipping: true, shippingProportional: proportional }, 'shipping');
     for(const local of locals){
       add({
         taxClass: 'shipping',
@@ -76,6 +86,7 @@ export const quickstartRows = input => {
         locality: local.locality,
         jurisdiction: local.jurisdiction || `${local.locality} local option`,
         appliesToShipping: true,
+        shippingProportional: proportional,
       }, 'shipping, local option');
     }
   }

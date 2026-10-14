@@ -22,7 +22,7 @@ const CLASSES = ['physical', 'digital', 'saas', 'saas-business'];
 
 const blank = () => ({
   country: 'US', state: '', locality: '', postalPattern: '', taxClass: 'physical', level: '', kind: 'taxable',
-  rate: '', appliesToShipping: false, jurisdiction: '', label: '', priority: 0, effectiveFrom: '', effectiveTo: '', note: '',
+  rate: '', appliesToShipping: false, shippingProportional: false, jurisdiction: '', label: '', priority: 0, effectiveFrom: '', effectiveTo: '', note: '',
 });
 
 export default class TaxRates extends ShadowComponent {
@@ -43,7 +43,7 @@ export default class TaxRates extends ShadowComponent {
     this.rates = [];
     this.loaded = false;
     this.editing = null;
-    this.quick = { country: 'US', state: '', stateRate: '', jurisdiction: '', taxable: ['physical'], exempt: ['nontaxable'], shippingTaxable: false, locals: '' };
+    this.quick = { country: 'US', state: '', stateRate: '', jurisdiction: '', taxable: ['physical'], exempt: ['nontaxable'], shipping: 'none', locals: '' };
     this.importing = false;
     this.csv = '';
     this.error = '';
@@ -109,7 +109,7 @@ export default class TaxRates extends ShadowComponent {
   };
 
   runQuickStart = async () => {
-    const { country, state, stateRate, jurisdiction, taxable, exempt, shippingTaxable, locals } = this.quick;
+    const { country, state, stateRate, jurisdiction, taxable, exempt, shipping, locals } = this.quick;
 
     const localRates = locals.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
       const [locality, rate] = line.split('=').map(part => part.trim());
@@ -118,7 +118,7 @@ export default class TaxRates extends ShadowComponent {
 
     this.busy = true;
     const [error, data] = await quickStart({
-      country, state, stateRate, jurisdiction, taxableClasses: taxable, exemptClasses: exempt, shippingTaxable, localRates,
+      country, state, stateRate, jurisdiction, taxableClasses: taxable, exemptClasses: exempt, shipping, localRates,
     });
     this.busy = false;
 
@@ -207,6 +207,12 @@ export default class TaxRates extends ShadowComponent {
           <input type="checkbox" .checked=${!!rate.appliesToShipping} @change=${event => this.set('appliesToShipping', event.target.checked)} />
           This row applies to shipping charges
         </label>
+        ${rate.appliesToShipping ? html`
+          <label class="field">
+            <input type="checkbox" .checked=${!!rate.shippingProportional} @change=${event => this.set('shippingProportional', event.target.checked)} />
+            …and only in proportion to the taxable goods in the order
+          </label>
+        ` : ''}
         <button class="primary" ?disabled=${this.busy} @click=${this.save}>${this.busy ? 'Saving…' : 'Save'}</button>
         <button class="secondary" @click=${() => { this.editing = null; }}>Cancel</button>
       </div>
@@ -244,8 +250,16 @@ export default class TaxRates extends ShadowComponent {
         `)}
 
         <label class="field">
-          <input type="checkbox" .checked=${quick.shippingTaxable} @change=${event => this.setQuick('shippingTaxable', event.target.checked)} />
-          Shipping is taxed here
+          <span class="d-b">Is shipping taxed here?</span>
+          <span class="tc-muted d-b">
+            <em>In proportion</em> taxes shipping only for the share of the order that is taxable — a $60 order with $50 of
+            taxable goods taxes five-sixths of the shipping. Your tax authority's instructions say which applies.
+          </span>
+          <select .value=${quick.shipping} @change=${event => this.setQuick('shipping', event.target.value)}>
+            <option value="none" ?selected=${quick.shipping === 'none'}>No</option>
+            <option value="full" ?selected=${quick.shipping === 'full'}>Yes, in full</option>
+            <option value="proportional" ?selected=${quick.shipping === 'proportional'}>Yes, in proportion to the taxable goods</option>
+          </select>
         </label>
 
         <label class="field">

@@ -17,6 +17,15 @@ import db from 'kempo/server/db/index.js';
   the rate table never needs it, so this says what it affects instead of insisting.
 */
 
+/*
+  Columns added since 0.2.0. `CREATE TABLE IF NOT EXISTS` leaves an existing table alone, so a site
+  that installed an earlier version needs these applied, and `IF NOT EXISTS` makes them safe to run
+  on every install and update.
+*/
+export const COLUMNS = [
+  sql`ALTER TABLE "kempoTaxRate" ADD COLUMN IF NOT EXISTS "shippingProportional" boolean NOT NULL DEFAULT false`,
+];
+
 export const INDEXES = [
   sql`CREATE UNIQUE INDEX IF NOT EXISTS "kempoTaxEntry_reference_idx" ON "kempoTaxEntry" ("kind", "reference")`,
   sql`CREATE INDEX IF NOT EXISTS "kempoTaxEntry_occurred_idx" ON "kempoTaxEntry" ("occurredAt")`,
@@ -26,6 +35,14 @@ export const INDEXES = [
 ];
 
 export default async () => {
+  for(const statement of COLUMNS){
+    try {
+      await db.execute(statement);
+    } catch(error) {
+      console.warn(`[kempo-tax] Could not add a column: ${error.message}`);
+    }
+  }
+
   for(const statement of INDEXES){
     try {
       await db.execute(statement);
