@@ -144,7 +144,7 @@ export const parseTaxIds = input => {
 /*
   The request
 
-  `defaults` is what the settings say: { currency, includesTax, taxCode, shippingTaxCode }.
+  `defaults` is what the settings say: { currency, includesTax, taxClass }.
 
   A line with an amount of 0 is kept in the answer — a caller zipping results back onto its cart by
   position must not find one missing — but is never sent, because Stripe rejects a zero amount and
@@ -173,6 +173,14 @@ export const parseRequest = (input, defaults = {}) => {
   if(input.lines.length > 250){
     return [{ code: 400, msg: 'A calculation takes at most 250 lines' }, null];
   }
+
+  /*
+    One default class serves every provider: a name ("physical") is what a rate table matches on,
+    and the category id behind it is what Stripe is sent. Resolving it once here means a line that
+    names nothing carries both.
+  */
+  const [defaultClassError, defaultClass] = resolveTaxClass(defaults.taxClass);
+  if(defaultClassError) return [{ code: 500, msg: `The default tax class setting is not valid: ${defaultClassError.msg}` }, null];
 
   const defaultBehavior = defaults.includesTax ? 'inclusive' : 'exclusive';
   const lines = [];
@@ -209,8 +217,8 @@ export const parseRequest = (input, defaults = {}) => {
       reference,
       amount: line.amount,
       quantity,
-      taxCode: resolved?.code || defaults.taxCode || null,
-      taxClass: resolved?.name || defaults.taxClass || null,
+      taxCode: resolved?.code || defaultClass?.code || null,
+      taxClass: resolved?.name || defaultClass?.name || null,
       taxBehavior,
     });
   }
@@ -229,7 +237,7 @@ export const parseRequest = (input, defaults = {}) => {
 
     shipping = {
       amount: input.shipping.amount,
-      taxCode: resolved?.code || defaults.shippingTaxCode || null,
+      taxCode: resolved?.code || TAX_CLASSES.shipping,
       taxClass: resolved?.name || 'shipping',
       taxBehavior,
     };

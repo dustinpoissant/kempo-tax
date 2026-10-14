@@ -170,7 +170,8 @@ Say what *kind* of thing a line is.
 | `shipping` | Shipping and delivery charges |
 
 A rate-table site matches rows by class name. Stripe uses the category behind the name. A line that
-names no class uses the **default tax class**.
+names no class uses the **default tax class** setting — a class name or a Stripe category id — and
+shipping always uses `shipping`.
 
 ## Prices that already include tax
 

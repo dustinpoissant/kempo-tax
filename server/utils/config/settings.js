@@ -1,5 +1,5 @@
 import { getSetting } from 'kempo/server/sdk.js';
-import { isValidCurrency, normaliseCurrency } from '../tax/shape.js';
+import { TAX_CLASSES, isValidCurrency, normaliseCurrency } from '../tax/shape.js';
 
 /*
   Reading the settings, and validating them, in one place.
@@ -21,8 +21,6 @@ export const DEFAULTS = {
   provider: 'stripe',
   currency: 'usd',
   includesTax: false,
-  taxCode: '',
-  shippingTaxCode: '',
   taxClass: 'physical',
   homeCountry: '',
   homeState: '',
@@ -35,12 +33,13 @@ export const DEFAULTS = {
 export const TAX_CODE = /^txcd_\d{8}$/;
 
 /*
-  A blank tax code is a legitimate stored value ("use Stripe's own default"), so it passes. Anything
-  else must be a real-looking id, or it falls back to blank rather than being sent.
+  A class name, or a raw category id. Anything else falls back to the default rather than being
+  passed on, because Stripe would reject an unknown id with a message about the account instead of
+  about the typo.
 */
-export const normaliseTaxCode = value => {
-  const trimmed = String(value || '').trim();
-  return TAX_CODE.test(trimmed) ? trimmed : '';
+export const normaliseDefaultClass = value => {
+  const cleaned = String(value || '').trim().toLowerCase();
+  return Object.hasOwn(TAX_CLASSES, cleaned) || TAX_CODE.test(cleaned) ? cleaned : DEFAULTS.taxClass;
 };
 
 export const normaliseDefaultCurrency = value => {
@@ -67,12 +66,10 @@ export const readConfig = async () => {
     return error ? fallback : value;
   };
 
-  const [provider, currency, includesTax, taxCode, shippingTaxCode, taxClass, homeCountry, homeState, homeCity, homePostal, rounding, originStates] = await Promise.all([
+  const [provider, currency, includesTax, taxClass, homeCountry, homeState, homeCity, homePostal, rounding, originStates] = await Promise.all([
     read('provider', DEFAULTS.provider),
     read('currency', DEFAULTS.currency),
     read('prices_include_tax', DEFAULTS.includesTax),
-    read('default_tax_code', DEFAULTS.taxCode),
-    read('shipping_tax_code', DEFAULTS.shippingTaxCode),
     read('default_tax_class', DEFAULTS.taxClass),
     read('home_country', DEFAULTS.homeCountry),
     read('home_state', DEFAULTS.homeState),
@@ -86,9 +83,7 @@ export const readConfig = async () => {
     provider: String(provider || DEFAULTS.provider),
     currency: normaliseDefaultCurrency(currency),
     includesTax: asBoolean(includesTax),
-    taxCode: normaliseTaxCode(taxCode),
-    shippingTaxCode: normaliseTaxCode(shippingTaxCode),
-    taxClass: String(taxClass || DEFAULTS.taxClass).trim().toLowerCase() || DEFAULTS.taxClass,
+    taxClass: normaliseDefaultClass(taxClass),
     homeCountry: normaliseCountry(homeCountry),
     homeState: upper(homeState, 10),
     homeCity: String(homeCity || '').trim().slice(0, 100),

@@ -1,6 +1,6 @@
 import { setSetting } from 'kempo/server/sdk.js';
 import { getProvider, listProviders } from '../../../server/providers/index.js';
-import { OWNER, ROUNDING, TAX_CODE, normaliseCountry, readConfig } from '../../../server/utils/config/settings.js';
+import { OWNER, ROUNDING, normaliseCountry, readConfig } from '../../../server/utils/config/settings.js';
 import { typeOf, descriptionOf, DECLARED_SETTINGS } from '../../../server/utils/config/declared.js';
 import { isValidCurrency, normaliseCurrency } from '../../../server/utils/tax/shape.js';
 import { isKnownClass } from '../../../server/utils/rates/validate.js';
@@ -29,8 +29,6 @@ export const SAVEABLE = [
   'provider',
   'currency',
   'prices_include_tax',
-  'default_tax_code',
-  'shipping_tax_code',
   'default_tax_class',
   'home_country',
   'home_state',
@@ -95,16 +93,6 @@ export default async (request, response) => {
       return response.status(400).json({ error: `Rounding must be one of: ${ROUNDING.join(', ')}` });
     }
     updates.rounding = String(body.rounding);
-  }
-
-  for(const name of ['default_tax_code', 'shipping_tax_code']){
-    if(body[name] === undefined) continue;
-
-    const value = String(body[name] ?? '').trim();
-    if(value && !TAX_CODE.test(value)){
-      return response.status(400).json({ error: 'A tax category looks like txcd_99999999 — pick one from the list, or leave it blank' });
-    }
-    updates[name] = value;
   }
 
   for(const provider of listProviders()){

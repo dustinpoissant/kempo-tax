@@ -103,9 +103,15 @@ export default {
   },
 
   'a line with no class falls back to the configured default': async ({ pass, fail }) => {
-    const parsed = parse(request({ shipping: { amount: 500 } }), { taxCode: 'txcd_10000000', shippingTaxCode: 'txcd_92010001' });
-    if(parsed.lines[0].taxCode !== 'txcd_10000000') return fail('line did not take the default');
-    if(parsed.shipping.taxCode !== 'txcd_92010001') return fail('shipping did not take its default');
+    const named = parse(request({ shipping: { amount: 500 } }), { taxClass: 'digital' });
+    if(named.lines[0].taxClass !== 'digital' || named.lines[0].taxCode !== TAX_CLASSES.digital) return fail('a default class name should carry its category id');
+    if(named.shipping.taxCode !== TAX_CLASSES.shipping || named.shipping.taxClass !== 'shipping') return fail('shipping should use its own class');
+
+    const raw = parse(request(), { taxClass: 'txcd_10103000' });
+    if(raw.lines[0].taxCode !== 'txcd_10103000' || raw.lines[0].taxClass !== 'saas') return fail('a default category id should come back under its class name');
+
+    const [bad] = parseRequest(request(), { taxClass: 'phsyical' });
+    if(!bad) return fail('an invalid default should be refused loudly, not ignored');
     pass('');
   },
 

@@ -48,18 +48,6 @@
       "description": "Whether the prices passed in already contain tax (VAT-style). Off means tax is added on top (US-style)"
     },
     {
-      "name": "default_tax_code",
-      "value": "",
-      "type": "string",
-      "description": "The Stripe tax category (txcd_…) used for an item that does not name one. Blank uses the default set in the Stripe dashboard"
-    },
-    {
-      "name": "shipping_tax_code",
-      "value": "",
-      "type": "string",
-      "description": "The Stripe tax category used for shipping charges. Blank uses Stripe's own shipping category"
-    },
-    {
       "name": "stripe_secret_key",
       "value": "",
       "type": "secret",
@@ -69,7 +57,7 @@
       "name": "default_tax_class",
       "value": "physical",
       "type": "string",
-      "description": "The tax class used for an item whose caller names none (rate table provider)"
+      "description": "The tax class used for an item whose caller names none: a class name (physical, digital, saas…) or a Stripe txcd_ code. Used by every provider"
     },
     {
       "name": "home_country",

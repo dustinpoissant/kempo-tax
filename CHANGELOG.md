@@ -39,6 +39,11 @@ All notable changes to `kempo-tax` are documented in this file.
   is still accepted by `reverseTransaction`.
 - Result lines now carry `netAmount`, `status` and `taxClass`.
 - `drizzle-orm` is a runtime dependency (the extension now has tables).
+- **One default class, for every provider.** The `default_tax_code` and `shipping_tax_code`
+  settings are gone. `default_tax_class` takes a class name (`physical`) or a Stripe category id
+  and is resolved to both, so a line that names nothing carries the name a rate table matches on
+  and the id Stripe is sent. Shipping always uses its own `shipping` class. An unusable default is
+  refused loudly rather than ignored.
 
 ### Not yet verified
 

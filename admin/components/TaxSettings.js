@@ -98,8 +98,6 @@ export default class TaxSettings extends ShadowComponent {
       provider: this.values.provider,
       currency: this.values.currency,
       prices_include_tax: !!this.values.includesTax,
-      default_tax_code: this.values.taxCode,
-      shipping_tax_code: this.values.shippingTaxCode,
       default_tax_class: this.values.taxClass,
       home_country: this.values.homeCountry,
       home_state: this.values.homeState,
@@ -206,22 +204,6 @@ export default class TaxSettings extends ShadowComponent {
     });
   }
 
-  #renderCodePicker(label, help, name){
-    return html`
-      <label class="field">
-        <span class="d-b">${label}</span>
-        <span class="small tc-muted d-b">${help}</span>
-        ${this.codes.length ? html`
-          <select .value=${this.values[name]} @change=${event => this.set(name, event.target.value)}>
-            <option value="" ?selected=${!this.values[name]}>Stripe’s own default</option>
-            ${this.codes.map(code => html`<option value=${code.id} ?selected=${code.id === this.values[name]}>${code.name} (${code.id})</option>`)}
-          </select>
-        ` : html`
-          <input type="text" placeholder="txcd_…" .value=${this.values[name]} @input=${event => this.set(name, event.target.value)} />
-        `}
-      </label>
-    `;
-  }
 
   render(){
     if(!this.loaded) return html`<k-spinner></k-spinner>`;
@@ -273,8 +255,15 @@ export default class TaxSettings extends ShadowComponent {
 
       <label class="field">
         <span class="d-b">Default tax class</span>
-        <span class="small tc-muted d-b">For an item whose caller names none (rate table). Usually <span class="ff-mono">physical</span>.</span>
-        <input type="text" .value=${this.values.taxClass || ''} @input=${event => this.set('taxClass', event.target.value)} />
+        <span class="small tc-muted d-b">
+          For an item whose caller names none — a class name such as <span class="ff-mono">physical</span>, or a Stripe
+          category id. Whether it is taxable, and at what rate, is decided per place. Shipping uses its own class.
+        </span>
+        <input type="text" list="tax-classes" .value=${this.values.taxClass || ''} @input=${event => this.set('taxClass', event.target.value)} />
+        <datalist id="tax-classes">
+          ${['physical', 'digital', 'saas', 'saas-business', 'nontaxable'].map(name => html`<option value=${name}></option>`)}
+          ${this.codes.map(code => html`<option value=${code.id}>${code.name}</option>`)}
+        </datalist>
       </label>
 
       <label class="field">
@@ -288,9 +277,6 @@ export default class TaxSettings extends ShadowComponent {
           <option value="invoice" ?selected=${this.values.rounding === 'invoice'}>Whole invoice</option>
         </select>
       </label>
-
-      ${this.#renderCodePicker('Default tax category', 'For an item whose caller names none. Whether it is taxable, and at what rate, is decided per place by Stripe.', 'taxCode')}
-      ${this.#renderCodePicker('Shipping tax category', 'For shipping charges. Blank uses Stripe’s shipping category.', 'shippingTaxCode')}
 
       <button class="primary" ?disabled=${this.saving} @click=${this.save}>${this.saving ? 'Saving…' : 'Save settings'}</button>
     `;

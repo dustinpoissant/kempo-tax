@@ -36,8 +36,6 @@ export default async input => {
   const [requestError, request] = parseRequest(input, {
     currency: config.currency,
     includesTax: config.includesTax,
-    taxCode: config.taxCode,
-    shippingTaxCode: config.shippingTaxCode,
     taxClass: config.taxClass,
   });
   if(requestError) return [requestError, null];
