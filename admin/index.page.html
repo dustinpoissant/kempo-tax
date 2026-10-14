@@ -1,0 +1,74 @@
+<!--
+locked: true
+-->
+<page title="Tax - Admin">
+<content>
+  <script type="module" src="/kempo/components/PermissionTarget.js"></script>
+  <script type="module" src="/kempo-ui/components/Tabs.js"></script>
+  <script type="module" src="/admin/extension/kempo-tax/components/TaxRegistrations.js"></script>
+  <script type="module" src="/admin/extension/kempo-tax/components/TaxTry.js"></script>
+  <script type="module" src="/admin/extension/kempo-tax/components/TaxSettings.js"></script>
+
+  <div>
+    <h1>Tax</h1>
+    <p class="tc-muted">
+      Looks up the sales tax, VAT or GST owed on a sale, using Stripe Tax. Nothing here keeps its own
+      table of rates — they change constantly and the rules differ by place and by what is sold, so
+      they are asked of Stripe every time.
+    </p>
+
+    <k-tabs id="tabs" active="registrations" persistent-id="kempo-tax-admin-tab">
+      <k-tab id="registrationsTab" for="registrations">Where tax is collected</k-tab>
+      <k-tab id="tryTab" for="try">Try a calculation</k-tab>
+      <k-tab id="settingsTab" for="settings">Settings</k-tab>
+
+      <k-tab-content id="registrationsContent" name="registrations">
+        <k-tax-registrations></k-tax-registrations>
+      </k-tab-content>
+
+      <k-tab-content id="tryContent" name="try">
+        <k-tax-try></k-tax-try>
+      </k-tab-content>
+
+      <k-tab-content id="settingsContent" name="settings">
+        <k-tax-settings></k-tax-settings>
+      </k-tab-content>
+    </k-tabs>
+
+    <!--
+      k-tabs finds its tabs with a direct-child query, so nothing can wrap the <k-tab> and
+      <k-tab-content> pairs. k-permission-target reaches in by id and hides the tab and its pane in
+      place. A courtesy only: the boundary that matters is on each route.
+    -->
+    <k-permission-target has="tax:view" target="#registrationsTab, #registrationsContent"></k-permission-target>
+    <k-permission-target has="tax:calculate" target="#tryTab, #tryContent"></k-permission-target>
+    <k-permission-target has="tax:settings" target="#settingsTab, #settingsContent"></k-permission-target>
+  </div>
+
+  <script type="module">
+    import { getAllCurrentUserPermissions } from '/kempo/sdk.js';
+
+    await customElements.whenDefined('k-tabs');
+
+    /*
+      persistent-id can restore a tab this visitor cannot see if their permissions changed since.
+      The permission targets hide a tab's button and pane; this stops a hidden one staying selected.
+    */
+    const [error, data] = await getAllCurrentUserPermissions();
+    const permissions = new Set(error ? [] : (data?.permissions || []));
+
+    const tabs = document.getElementById('tabs');
+    if(tabs){
+      const visibility = {
+        registrations: permissions.has('tax:view'),
+        try: permissions.has('tax:calculate'),
+        settings: permissions.has('tax:settings'),
+      };
+      if(!visibility[tabs.active]){
+        const fallback = Object.keys(visibility).find(name => visibility[name]);
+        if(fallback) tabs.active = fallback;
+      }
+    }
+  </script>
+</content>
+</page>

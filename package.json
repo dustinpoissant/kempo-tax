@@ -1,0 +1,52 @@
+{
+  "name": "kempo-tax",
+  "version": "0.1.0",
+  "description": "Sales tax, VAT and GST for kempo — look up what to charge for an address and items, with Stripe Tax built in",
+  "license": "MIT",
+  "author": "Dustin Poissant",
+  "type": "module",
+  "main": "sdk.js",
+  "scripts": {
+    "test": "node scripts/run-tests.js kempo-test -l minimal",
+    "link:local": "npm install ../kempo ../kempo-server ../kempo-ui --no-save --no-legacy-peer-deps --force"
+  },
+  "exports": {
+    "./install": "./install.js",
+    "./update": "./update.js",
+    "./sdk": "./sdk.js"
+  },
+  "files": [
+    "admin",
+    "public",
+    "server",
+    "install.js",
+    "update.js",
+    "sdk.js",
+    "kempo-config.json",
+    "PLAN.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dustinpoissant/kempo-tax.git"
+  },
+  "dependencies": {
+    "stripe": "^22.5.0"
+  },
+  "peerDependencies": {
+    "kempo": ">=4.5.8",
+    "kempo-server": ">=3.3.0",
+    "kempo-ui": ">=0.4.53"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "drizzle-orm": "^0.45.2",
+    "kempo-testing-framework": "^1.4.11",
+    "postgres": "^3.4.9"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "puppeteer@25.7.0": true
+  }
+}
