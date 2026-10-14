@@ -4,6 +4,14 @@
 > existing code is the reference for style; read `server/providers/index.js` and
 > `server/utils/tax/shape.js` before changing anything.
 
+> **Upstream changes are allowed.** Every dependency with `kempo` in its name (kempo, kempo-ui,
+> kempo-css, kempo-server, kempo-payments, kempo-media, and the rest) is owned by the same person, and
+> the goal of this project is to keep improving all of them. If the work here needs a change in one of
+> them — a UI component, a payment call, a CMS hook — **make it, in that repository, without asking
+> and without deferring it to a later step.** Do it the normal way there: tests, README and CHANGELOG,
+> a backwards-compatible change where other packages depend on it, and the dependency order when
+> publishing. Never commit a `file:` specifier.
+
 ## What exists
 
 `calculateTax`, `recordTransaction`, `reverseTransaction`, tax classes, a Stripe Tax provider and an
