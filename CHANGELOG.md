@@ -4,6 +4,10 @@ All notable changes to `kempo-tax` are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Its menu entry is in the **Commerce** group, after Carts and Shipping (priority 96).
+
 ### Added
 
 - **Rate table provider (`rates`).** Tax worked out from rows the site maintains — no external
