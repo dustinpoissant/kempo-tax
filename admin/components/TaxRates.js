@@ -168,7 +168,7 @@ export default class TaxRates extends ShadowComponent {
     const rate = this.editing;
 
     return html`
-      <div class="card">
+      <div class="card pb">
         <h2>${rate.id ? 'Edit rate' : 'Add a rate'}</h2>
         <div class="grid">
           ${this.#field('Country', 'country', { placeholder: 'US' })}
@@ -223,9 +223,9 @@ export default class TaxRates extends ShadowComponent {
     const quick = this.quick;
 
     return html`
-      <div class="card">
+      <div class="card pb">
         <h2>Quick start</h2>
-        <p class="tc-muted">
+        <p class="tc-muted mb">
           Answer five questions and the matching rows are created for you — real rows, which you can then edit.
           <strong>Get the rate from your tax authority</strong>; this does not look it up or guess it.
         </p>
@@ -240,11 +240,11 @@ export default class TaxRates extends ShadowComponent {
             <input type="text" placeholder="Vermont" .value=${quick.jurisdiction} @input=${event => this.setQuick('jurisdiction', event.target.value)} /></label>
         </div>
 
-        <p class="d-b">Taxable:</p>
+        <p class="d-b mb">Taxable:</p>
         ${CLASSES.map(name => html`
           <label class="d-ib"><input type="checkbox" .checked=${quick.taxable.includes(name)} @change=${() => this.toggle('taxable', name)} /> ${name}</label>
         `)}
-        <p class="d-b">Exempt (sold here, no tax, still reported):</p>
+        <p class="d-b mb">Exempt (sold here, no tax, still reported):</p>
         ${['nontaxable'].concat(CLASSES).map(name => html`
           <label class="d-ib"><input type="checkbox" .checked=${quick.exempt.includes(name)} @change=${() => this.toggle('exempt', name)} /> ${name}</label>
         `)}
@@ -276,18 +276,18 @@ export default class TaxRates extends ShadowComponent {
     if(!this.loaded) return html`<k-spinner></k-spinner>`;
 
     return html`
-      ${this.error ? html`<p class="tc-danger">${this.error}</p>` : ''}
-      ${this.notice ? html`<p class="tc-success">${this.notice}</p>` : ''}
+      ${this.error ? html`<p class="tc-danger mb">${this.error}</p>` : ''}
+      ${this.notice ? html`<p class="tc-success mb">${this.notice}</p>` : ''}
 
       ${this.editing ? this.#renderEditor() : ''}
       ${!this.rates.length && !this.editing ? this.#renderQuickStart() : ''}
 
       ${this.rates.length ? html`
-        <p class="tc-muted">
+        <p class="tc-muted mb">
           Rates stack by level: the most specific row at each level applies, and the levels add. To change a rate going
           forward, <strong>end</strong> the old row and add a new one — a sale quoted last month keeps last month's rate.
         </p>
-        <table>
+        <table class="mb">
           <thead>
             <tr><th>Place</th><th>Applies to</th><th>Level</th><th>Rate</th><th>Shipping</th><th>Effective</th><th>Name</th><th></th></tr>
           </thead>
@@ -312,15 +312,15 @@ export default class TaxRates extends ShadowComponent {
         </table>
       ` : ''}
 
-      <p>
+      <p class="mb">
         ${this.editing ? '' : html`<button class="primary" @click=${() => { this.editing = blank(); }}>Add a rate</button>`}
         <button class="secondary" @click=${() => { this.importing = !this.importing; }}>Import CSV</button>
         <a class="button secondary" href=${exportUrls.rates}>Export CSV</a>
       </p>
 
       ${this.importing ? html`
-        <div class="card">
-          <p class="tc-muted">
+        <div class="card pb">
+          <p class="tc-muted mb">
             Columns: country, state, locality, postalPattern, taxClass, level, kind, rate, appliesToShipping, taxType,
             jurisdiction, label, priority, enabled, effectiveFrom, effectiveTo, note. Only country and rate are required.
             It only adds rows, and if any row is wrong nothing is added.
@@ -331,7 +331,7 @@ export default class TaxRates extends ShadowComponent {
       ` : ''}
 
       ${this.rates.length && !this.editing ? html`
-        <details>
+        <details class="mb">
           <summary class="tc-muted">Run the quick start again</summary>
           ${this.#renderQuickStart()}
         </details>

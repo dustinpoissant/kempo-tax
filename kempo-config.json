@@ -60,6 +60,12 @@
       "description": "The tax class used for an item whose caller names none: a class name (physical, digital, saas…) or a Stripe txcd_ code. Used by every provider"
     },
     {
+      "name": "tax_class_by_type",
+      "value": "",
+      "type": "string",
+      "description": "What each product type is taxed as, as JSON of product type to tax class (for example {\"credits-only\":\"nontaxable\"}). Blank uses the built-in defaults: physical items as physical, credits as digital. A type not listed uses the default tax class"
+    },
+    {
       "name": "home_country",
       "value": "",
       "type": "string",

@@ -14,6 +14,7 @@ import { emptyCalculation, hasBillableAmount, parseRequest } from './shape.js';
     lines: [
       { amount: 4999, reference: 'sku-1', taxClass: 'physical' },
       { amount: 1500, reference: 'sku-2', quantity: 3, taxClass: 'digital' },
+      { amount: 900, reference: 'sku-3', productType: 'credits-only' },   // taxed as the Settings screen says that type is
     ],
     shipping: { amount: 800 },
   });
@@ -37,6 +38,7 @@ export default async input => {
     currency: config.currency,
     includesTax: config.includesTax,
     taxClass: config.taxClass,
+    typeClasses: config.taxClassByType,
   });
   if(requestError) return [requestError, null];
 

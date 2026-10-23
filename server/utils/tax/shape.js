@@ -146,7 +146,8 @@ export const parseTaxIds = input => {
 /*
   The request
 
-  `defaults` is what the settings say: { currency, includesTax, taxClass }.
+  `defaults` is what the settings say: { currency, includesTax, taxClass, typeClasses }. `typeClasses` maps a product type to a
+  tax class, and is used for a line that names no class of its own but says its `productType`.
 
   A line with an amount of 0 is kept in the answer — a caller zipping results back onto its cart by
   position must not find one missing — but is never sent, because Stripe rejects a zero amount and
@@ -206,7 +207,9 @@ export const parseRequest = (input, defaults = {}) => {
     if(seen.has(reference)) return [{ code: 400, msg: `Line ${index + 1}: reference "${reference}" is used twice` }, null];
     seen.add(reference);
 
-    const [codeError, resolved] = resolveTaxClass(line.taxClass ?? line.taxCode);
+    /* A class the line names wins; otherwise what its product type is taxed as; otherwise the default class. */
+    const typed = typeof line.productType === 'string' && defaults.typeClasses && Object.hasOwn(defaults.typeClasses, line.productType) ? defaults.typeClasses[line.productType] : undefined;
+    const [codeError, resolved] = resolveTaxClass(line.taxClass ?? line.taxCode ?? typed);
     if(codeError) return [{ code: codeError.code, msg: `Line ${index + 1}: ${codeError.msg}` }, null];
 
     const taxBehavior = line.taxBehavior === undefined ? defaultBehavior : line.taxBehavior;

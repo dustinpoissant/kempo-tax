@@ -6,10 +6,19 @@ All notable changes to `kempo-tax` are documented in this file.
 
 ### Changed
 
+- **Spacing on the Tax screens:** tables, paragraphs, export links and buttons on the Reports, Rates, Where tax is collected and Try a calculation tabs now have the `mb` bottom margin, and the Reports controls are a labelled row (Report on, Quarter or From and To) with the Run report button under it.
+
+### Added
+
+- **Tax by product type.** A calculation line can carry `productType`, and a line that names no class of its own is taxed as the class its product type maps to, set on **Settings → What each product type is taxed as** (the `tax_class_by_type` setting). Built-in: Physical Item is physical and Credits Only is digital (a game currency, not a gift card); a type not listed uses the default class. A class named on the line still wins.
+
+### Changed
+
 - Its menu entry is in the **Commerce** group, after Carts and Shipping (priority 96).
 
 ### Added
 
+- **Shipping tax:** `shippingTax({ address, currency })` in the SDK says whether shipping is taxed at an address, and by how much, using the same calculation as the checkout (a sample of goods with and without a sample shipping charge). Nothing is saved to the ledger.
 - **Rate table provider (`rates`).** Tax worked out from rows the site maintains — no external
   service, no per-transaction fee, any payment processor. Rows are *layers* that stack by level
   (a state rate plus a local option), the most specific row at a level wins, and a place with no row

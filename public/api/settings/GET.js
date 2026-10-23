@@ -1,6 +1,7 @@
 import { activeProvider, listProviders } from '../../../server/providers/index.js';
 import { readConfig } from '../../../server/utils/config/settings.js';
 import { gate } from '../../../server/utils/permissions/gate.js';
+import { TAX_CLASSES } from '../../../server/utils/tax/shape.js';
 
 /*
   Everything the settings screen renders, and not one character of a secret.
@@ -22,6 +23,8 @@ export default async (request, response) => {
     settings: config,
     providers: listProviders(),
     status,
+    /* The classes a product type can be taxed as. */
+    classes: Object.keys(TAX_CLASSES).filter(name => name !== 'shipping'),
     /*
       Said here rather than left for the admin to discover through a save that appears to work and
       does nothing. Without this key kempo cannot store a secret setting at all.

@@ -180,6 +180,17 @@ export default {
     pass('');
   },
 
+  'the tax on a sample shipping charge tells whether shipping is taxed here: a state that taxes it, and one that does not': async ({ pass, fail }) => {
+    const sample = [{ amount: 10000, reference: 'sample-goods' }];
+    const withShipping = { amount: 10000, reference: 'sample-shipping' };
+    const taxOnShipping = rows => calc(rows, { lines: sample, shipping: withShipping }).tax - calc(rows, { lines: sample }).tax;
+    const taxing = [row({ taxClass: 'physical' }), row({ taxClass: 'shipping', appliesToShipping: true })];
+    const exempt = [row({ taxClass: 'physical' })];
+    if(taxOnShipping(taxing) !== 600) return fail(`taxed shipping: ${taxOnShipping(taxing)}`);
+    if(taxOnShipping(exempt) !== 0) return fail(`untaxed shipping: ${taxOnShipping(exempt)}`);
+    pass('');
+  },
+
   'proportional shipping taxes the share of shipping that matches the taxable goods — the same figure Stripe returned': async ({ pass, fail }) => {
     // Captured from a live Stripe test-mode calculation for exactly this cart: Vermont, 7% combined,
     // $49.99 taxable goods + $10.00 exempt goods + $8.00 shipping gave 350 + 0 + 47.

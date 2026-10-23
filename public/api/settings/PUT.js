@@ -36,6 +36,7 @@ export const SAVEABLE = [
   'home_postal',
   'rounding',
   'origin_sourcing_states',
+  'tax_class_by_type',
   ...listProviders().flatMap(provider => provider.credentialFields.map(field => field.name)),
 ];
 
@@ -74,6 +75,21 @@ export default async (request, response) => {
       return response.status(400).json({ error: 'The default tax class must be one of the named classes, or a txcd_ code' });
     }
     updates.default_tax_class = value;
+  }
+
+  if(body.tax_class_by_type !== undefined){
+    const map = body.tax_class_by_type;
+    if(!map || typeof map !== 'object' || Array.isArray(map) || Object.keys(map).length > 100){
+      return response.status(400).json({ error: 'The tax class for each product type must be a list of product types and classes' });
+    }
+    for(const [type, value] of Object.entries(map)){
+      const cleaned = String(value ?? '').trim().toLowerCase();
+      if(!/^[A-Za-z0-9_-]{1,60}$/.test(type) || (cleaned !== '' && (!isKnownClass(cleaned) || cleaned === '*'))){
+        return response.status(400).json({ error: `"${type}" needs a named tax class, a txcd_ code, or blank to use the default` });
+      }
+    }
+    /* Stored whole, and kept even where it matches the default, so a later change of the default cannot move a type the seller chose. */
+    updates.tax_class_by_type = JSON.stringify(Object.fromEntries(Object.entries(map).map(([type, value]) => [type, String(value ?? '').trim().toLowerCase()])));
   }
 
   if(body.home_country !== undefined){

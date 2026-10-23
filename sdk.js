@@ -40,6 +40,7 @@ export { recordTransaction, reverseTransaction } from './server/utils/tax/transa
 export { TAX_CLASSES, TAX_BEHAVIORS, resolveTaxCode, resolveTaxClass, parseAddress } from './server/utils/tax/shape.js';
 export { parsePercent, formatPercent } from './server/utils/tax/percent.js';
 
+export { shippingTax } from './server/utils/tax/shipping.js';
 export { listRates, createRate, updateRate, deleteRate } from './server/utils/rates/store.js';
 export { cleanRate, presentRate } from './server/utils/rates/validate.js';
 

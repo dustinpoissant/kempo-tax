@@ -88,7 +88,7 @@ export default class TaxTry extends ShadowComponent {
 
   render(){
     return html`
-      <p class="tc-muted">A quote only — nothing is recorded or reported.</p>
+      <p class="tc-muted mb">A quote only — nothing is recorded or reported.</p>
 
       <div class="grid">
         ${this.#field('Country', 'country', { placeholder: 'US' })}
@@ -106,11 +106,11 @@ export default class TaxTry extends ShadowComponent {
 
       <button class="primary" ?disabled=${this.busy} @click=${this.run}>${this.busy ? 'Calculating…' : 'Calculate'}</button>
 
-      ${this.error ? html`<p class="tc-danger">${this.error}</p>` : ''}
+      ${this.error ? html`<p class="tc-danger mb">${this.error}</p>` : ''}
 
       ${this.result ? html`
         <h2>Result</h2>
-        <p>
+        <p class="mb">
           <strong>Tax ${this.#money(this.result.tax)} ${this.result.currency.toUpperCase()}</strong>
           · total ${this.#money(this.result.total)}
           · ${this.result.collecting
@@ -118,7 +118,7 @@ export default class TaxTry extends ShadowComponent {
             : html`<span class="tc-warning">not collecting here — this is a quote of the rate only</span>`}
         </p>
         ${this.result.breakdown.length ? html`
-          <table>
+          <table class="mb">
             <thead><tr><th>Jurisdiction</th><th>Type</th><th>Rate</th><th>Taxable</th><th>Tax</th><th>Reason</th></tr></thead>
             <tbody>
               ${this.result.breakdown.map(entry => html`

@@ -22,6 +22,8 @@ export default class TaxSettings extends ShadowComponent {
     values: { type: Object, state: true },
     edits: { type: Object, state: true },
     codes: { type: Array, state: true },
+    classes: { type: Array, state: true },
+    productTypes: { type: Array, state: true },
     saving: { type: Boolean, state: true },
     loaded: { type: Boolean, state: true },
     error: { type: String, state: true },
@@ -36,6 +38,8 @@ export default class TaxSettings extends ShadowComponent {
     this.values = {};
     this.edits = {};
     this.codes = [];
+    this.classes = ['physical', 'digital', 'nontaxable'];
+    this.productTypes = [];
     this.saving = false;
     this.loaded = false;
     this.error = '';
@@ -67,8 +71,17 @@ export default class TaxSettings extends ShadowComponent {
     this.status = data.status;
     this.encryptionConfigured = data.encryptionConfigured;
     this.values = { ...data.settings };
+    this.classes = data.classes ?? this.classes;
     this.edits = {};
     this.loaded = true;
+
+    /* The product types come from kempo-products; without it there is nothing to map and the table is left out. */
+    try {
+      const response = await fetch('/products/api/product-types', { credentials: 'same-origin' });
+      if(response.ok) this.productTypes = (await response.json()).productTypes ?? [];
+    } catch {
+      this.productTypes = [];
+    }
 
     // The picker is a convenience; settings still work with a typed id if Stripe is unreachable.
     if(data.status?.configured){
@@ -85,6 +98,10 @@ export default class TaxSettings extends ShadowComponent {
     this.values = { ...this.values, [name]: value };
   };
 
+  setTypeClass = (type, taxClass) => {
+    this.values = { ...this.values, taxClassByType: { ...(this.values.taxClassByType ?? {}), [type]: taxClass } };
+  };
+
   edit = (name, value) => {
     this.edits = { ...this.edits, [name]: value };
   };
@@ -99,6 +116,7 @@ export default class TaxSettings extends ShadowComponent {
       currency: this.values.currency,
       prices_include_tax: !!this.values.includesTax,
       default_tax_class: this.values.taxClass,
+      ...(this.productTypes.length ? { tax_class_by_type: this.values.taxClassByType ?? {} } : {}),
       home_country: this.values.homeCountry,
       home_state: this.values.homeState,
       home_city: this.values.homeCity,
@@ -265,6 +283,29 @@ export default class TaxSettings extends ShadowComponent {
           ${this.codes.map(code => html`<option value=${code.id}>${code.name}</option>`)}
         </datalist>
       </label>
+
+      ${this.productTypes.length ? html`
+        <h3 class="h5">What each product type is taxed as</h3>
+        <p class="tc-muted">
+          Every sale of a product is taxed as the class of its product type, so a different class for one product means giving it
+          a different product type. A type set to the default uses the default tax class above. Credits are a digital asset, like a game
+          currency, so they start as digital. Check with a tax adviser if you are not sure how your products are taxed.
+        </p>
+        <table class="mb">
+          <thead><tr><th>Product type</th><th>Taxed as</th></tr></thead>
+          <tbody>
+            ${this.productTypes.map(type => html`<tr>
+              <td>${type.name}</td>
+              <td>
+                <select aria-label=${`Tax class for ${type.name}`} @change=${event => this.setTypeClass(type.key, event.target.value)}>
+                  <option value="" ?selected=${!this.values.taxClassByType?.[type.key]}>Default (${this.values.taxClass || 'physical'})</option>
+                  ${[...new Set([...this.classes, this.values.taxClassByType?.[type.key]].filter(Boolean))].map(name => html`<option value=${name} ?selected=${this.values.taxClassByType?.[type.key] === name}>${name}</option>`)}
+                </select>
+              </td>
+            </tr>`)}
+          </tbody>
+        </table>
+      ` : ''}
 
       <label class="field">
         <span class="d-b">Rounding</span>

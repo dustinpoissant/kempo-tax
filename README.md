@@ -185,6 +185,12 @@ A rate-table site matches rows by class name. Stripe uses the category behind th
 names no class uses the **default tax class** setting — a class name or a Stripe category id — and
 shipping always uses `shipping`.
 
+## Taxing by product type
+
+A line that names no tax class of its own is taxed as the class of its **product type**, set in the table on **Settings → What each product type is taxed as** (the `tax_class_by_type` setting). A caller passes `productType` on a line, and kempo-commerce does, from the product: `{ amount: 900, reference: 'x', productType: 'credits-only' }`. The order is the line's own `taxClass` or `taxCode`, then its product type's class, then the **default tax class**.
+
+The built-in map is **Physical Item → physical** and **Credits Only → digital**. Credits are a digital asset (a game currency, bought for power-ups and cosmetics), so they are taxed as digital goods. They are not stored value like a gift card: that is Store Credit (kempo-store-credit), a money balance that is not sold as a product. That is a reasonable default, not tax advice, and states differ; change it on the Settings screen if your adviser says otherwise. A different class for one product means giving it a different product type.
+
 ## Prices that already include tax
 
 Off by default, which is US-style pricing: tax is added on top. Turn **Prices already include tax**
@@ -280,7 +286,7 @@ are the data operations with no permission checks of their own — the routes en
 |---|---|
 | `address` | `{ country (required, 2 letters), state, postalCode, city, line1 }` |
 | `addressSource` | `'shipping'` (default) or `'billing'` |
-| `lines[]` | `{ amount, reference?, quantity?, taxClass?, taxBehavior? }` — `amount` is the line's **total** |
+| `lines[]` | `{ amount, reference?, quantity?, taxClass?, productType?, taxBehavior? }` — `amount` is the line's **total**; `productType` picks the class when none is named (see [Taxing by product type](#taxing-by-product-type)) |
 | `shipping` | `{ amount, taxClass?, taxBehavior? }` |
 | `currency` | Defaults to the setting |
 | `taxIds` | `[{ type, value }]` — Stripe only; may make a sale B2B / reverse-charge |
