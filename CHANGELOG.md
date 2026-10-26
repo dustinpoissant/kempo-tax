@@ -85,3 +85,8 @@ report that nets to zero. All six class ids were checked against Stripe's own ta
 
 First release. Tax lookup with Stripe Tax: `calculateTax`, `recordTransaction`,
 `reverseTransaction`, tax classes, an admin screen with registrations, and settings.
+
+## [0.3.2] - 2026-10-26
+### Changed
+- The rates list is a kempo-ui table: Edit, End and Delete are row controls. The registrations list and the report tables are tables too.
+- Requires kempo 4.9.7 (the admin lists use kempo-ui tables).

@@ -1,5 +1,6 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
 import '/kempo-ui/components/Spinner.js';
+import '/kempo-ui/components/Table.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { getReport, listLedger, exportUrls } from '/tax/sdk.js';
 
@@ -118,31 +119,11 @@ export default class TaxReports extends ShadowComponent {
         <em>Not collected</em> is sold where this site has no rate — it appears on no return.</p>
 
       ${data.jurisdictions.length ? html`
-        <table class="mb">
-          <thead><tr><th>Jurisdiction</th><th>Level</th><th>Rate</th><th>Taxable sales</th><th>Tax (net)</th></tr></thead>
-          <tbody>
-            ${data.jurisdictions.map(row => html`
-              <tr>
-                <td>${row.jurisdiction}${row.state && row.state !== row.jurisdiction ? ` (${row.state})` : ''}</td>
-                <td>${row.level}</td>
-                <td>${row.rate ?? ''}%</td>
-                <td>${money(row.taxableAmount)}</td>
-                <td>${money(row.taxAmount)}</td>
-              </tr>
-            `)}
-          </tbody>
-        </table>
+        <k-table .records=${data.jurisdictions} .fields=${[{ name: 'jurisdiction', label: 'Jurisdiction', editable: false, calculator: row => `${row.jurisdiction}${row.state && row.state !== row.jurisdiction ? ` (${row.state})` : ''}` }, { name: 'level', label: 'Level', size: 130, editable: false }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: row => `${row.rate ?? ''}%` }, { name: 'taxableAmount', label: 'Taxable sales', size: 160, editable: false, calculator: row => money(row.taxableAmount) }, { name: 'taxAmount', label: 'Tax (net)', size: 140, editable: false, calculator: row => money(row.taxAmount) }]}></k-table>
       ` : ''}
 
       ${data.months.length > 1 ? html`
-        <table class="mb">
-          <thead><tr><th>Month</th><th>Collected</th><th>Reversed</th><th>Net</th></tr></thead>
-          <tbody>
-            ${data.months.map(row => html`
-              <tr><td>${row.month}</td><td>${money(row.taxCollected)}</td><td>${money(row.taxReversed)}</td><td>${money(row.taxNet)}</td></tr>
-            `)}
-          </tbody>
-        </table>
+        <k-table .records=${data.months} .fields=${[{ name: 'month', label: 'Month', editable: false }, { name: 'taxCollected', label: 'Collected', size: 150, editable: false, calculator: row => money(row.taxCollected) }, { name: 'taxReversed', label: 'Reversed', size: 150, editable: false, calculator: row => money(row.taxReversed) }, { name: 'taxNet', label: 'Net', size: 150, editable: false, calculator: row => money(row.taxNet) }]}></k-table>
       ` : ''}
       <p class="mb"><a class="button secondary" href=${exportUrls.report({ ...this.params, currency })}>Export ${currency.toUpperCase()} report (CSV)</a></p>
     `;
@@ -194,22 +175,7 @@ export default class TaxReports extends ShadowComponent {
 
       ${this.entries.length ? html`
         <h2>Ledger <span class="tc-muted">(${this.entries.length} of ${this.total})</span></h2>
-        <table class="mb">
-          <thead><tr><th>When</th><th>Kind</th><th>Reference</th><th>Provider</th><th>Place</th><th>Sales</th><th>Tax</th></tr></thead>
-          <tbody>
-            ${this.entries.map(entry => html`
-              <tr>
-                <td >${new Date(entry.occurredAt).toLocaleString()}</td>
-                <td>${entry.kind}</td>
-                <td class="ff-mono">${entry.reference}</td>
-                <td>${entry.provider}</td>
-                <td>${[entry.country, entry.state].filter(Boolean).join(' ')}</td>
-                <td>${this.#money(entry.salesAmount, entry.currency)}</td>
-                <td>${this.#money(entry.taxAmount, entry.currency)}</td>
-              </tr>
-            `)}
-          </tbody>
-        </table>
+        <k-table .records=${this.entries} .fields=${[{ name: 'occurredAt', label: 'When', size: 190, editable: false, formatter: value => new Date(value).toLocaleString() }, { name: 'kind', label: 'Kind', size: 130, editable: false }, { name: 'reference', label: 'Reference', editable: false }, { name: 'provider', label: 'Provider', size: 120, editable: false }, { name: 'place', label: 'Place', size: 160, editable: false, calculator: entry => [entry.country, entry.state].filter(Boolean).join(' ') }, { name: 'salesAmount', label: 'Sales', size: 130, editable: false, calculator: entry => this.#money(entry.salesAmount, entry.currency) }, { name: 'taxAmount', label: 'Tax', size: 130, editable: false, calculator: entry => this.#money(entry.taxAmount, entry.currency) }]}></k-table>
       ` : ''}
       <p class="mb">
         <a class="button secondary" href=${exportUrls.ledger(this.report ? { from: this.report.from || '', to: this.report.to || '' } : {})}>Export this period's ledger (CSV)</a>

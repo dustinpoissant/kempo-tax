@@ -1,4 +1,6 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
+import '/kempo-ui/components/Table.js';
+import './RateAction.js';
 import '/kempo-ui/components/Spinner.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { listRates, createRate, updateRate, deleteRate, importRates, quickStart, exportUrls } from '/tax/sdk.js';
@@ -277,6 +279,15 @@ const pane = this.closest('k-tab-content');
     `;
   }
 
+  /* A row's action from the rates table. Editing works on a copy without the row's own action list. */
+  rateAction = ({ action, record }) => {
+    const { actions, ...rate } = record;
+    if(action === 'edit') this.editing = { ...rate };
+    else if(action === 'end') this.end(rate);
+    else if(action === 'delete') this.remove(rate);
+  };
+
+
   render(){
     if(!this.loaded) return html`<k-spinner></k-spinner>`;
 
@@ -292,29 +303,7 @@ const pane = this.closest('k-tab-content');
           Rates stack by level: the most specific row at each level applies, and the levels add. To change a rate going
           forward, <strong>end</strong> the old row and add a new one — a sale quoted last month keeps last month's rate.
         </p>
-        <table class="mb">
-          <thead>
-            <tr><th>Place</th><th>Applies to</th><th>Level</th><th>Rate</th><th>Shipping</th><th>Effective</th><th>Name</th><th></th></tr>
-          </thead>
-          <tbody>
-            ${this.rates.map(rate => html`
-              <tr class=${rate.enabled ? '' : 'tc-muted'}>
-                <td>${[rate.country, rate.state, rate.locality, rate.postalPattern].filter(Boolean).join(' · ')}</td>
-                <td>${rate.taxClass}</td>
-                <td>${rate.level}</td>
-                <td>${rate.kind === 'exempt' ? html`<em>exempt</em>` : `${rate.rate}%`}</td>
-                <td>${rate.appliesToShipping ? 'yes' : ''}</td>
-                <td >${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}</td>
-                <td>${rate.jurisdiction}</td>
-                <td>
-                  <button class="link" @click=${() => { this.editing = { ...rate }; }}>Edit</button>
-                  ${rate.effectiveTo ? '' : html`<button class="link" @click=${() => this.end(rate)}>End</button>`}
-                  <button class="link tc-danger" @click=${() => this.remove(rate)}>Delete</button>
-                </td>
-              </tr>
-            `)}
-          </tbody>
-        </table>
+        <k-table .records=${this.rates.map(rate => ({ ...rate, actions: ['edit', rate.effectiveTo ? null : 'end', 'delete'].filter(Boolean) }))} .fields=${[{ name: 'place', label: 'Place', size: 240, editable: false, calculator: rate => [rate.country, rate.state, rate.locality, rate.postalPattern].filter(Boolean).join(' · ') }, { name: 'taxClass', label: 'Applies to', size: 170, editable: false }, { name: 'level', label: 'Level', size: 110, editable: false }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: rate => rate.kind === 'exempt' ? 'exempt' : `${rate.rate}%` }, { name: 'shipping', label: 'Shipping', size: 100, editable: false, calculator: rate => rate.appliesToShipping ? 'yes' : '' }, { name: 'effective', label: 'Effective', size: 200, editable: false, calculator: rate => `${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}` }, { name: 'jurisdiction', label: 'Name', editable: false }]} @rateAction=${event => this.rateAction(event.detail)}><k-tax-rate-action slot="before" action="edit" label="Edit"></k-tax-rate-action><k-tax-rate-action slot="after" action="end" label="End"></k-tax-rate-action><k-tax-rate-action slot="after" action="delete" label="Delete"></k-tax-rate-action></k-table>
       ` : ''}
 
       <p class="mb">

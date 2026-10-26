@@ -1,4 +1,5 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
+import '/kempo-ui/components/Table.js';
 import '/kempo-ui/components/Spinner.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { getStatus, listRegistrations } from '/tax/sdk.js';
@@ -151,22 +152,7 @@ const pane = this.closest('k-tab-content');
       ${this.error ? html`<p class="tc-danger mb">${this.error}</p>` : ''}
 
       ${this.registrations.length ? html`
-        <table class="mb">
-          <thead>
-            <tr><th>Country</th><th>Region</th><th>Type</th><th>Status</th><th>Active from</th></tr>
-          </thead>
-          <tbody>
-            ${this.registrations.map(entry => html`
-              <tr>
-                <td>${entry.country}</td>
-                <td>${entry.state || '—'}</td>
-                <td>${entry.type || '—'}</td>
-                <td>${entry.status}</td>
-                <td>${entry.activeFrom ? new Date(entry.activeFrom).toLocaleDateString() : '—'}</td>
-              </tr>
-            `)}
-          </tbody>
-        </table>
+        <k-table .records=${this.registrations} .fields=${[{ name: 'country', label: 'Country', size: 120, editable: false }, { name: 'state', label: 'Region', size: 160, editable: false, calculator: entry => entry.state || '—' }, { name: 'type', label: 'Type', editable: false, calculator: entry => entry.type || '—' }, { name: 'status', label: 'Status', size: 140, editable: false }, { name: 'activeFrom', label: 'Active from', size: 180, editable: false, calculator: entry => entry.activeFrom ? new Date(entry.activeFrom).toLocaleDateString() : '—' }]}></k-table>
       ` : ''}
 
       <p class="tc-muted mb">
