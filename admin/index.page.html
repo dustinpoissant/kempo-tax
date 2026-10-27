@@ -19,7 +19,7 @@ locked: true
       Either way every recorded sale goes into a ledger you can report from.
     </p>
 
-    <k-tabs id="tabs" active="registrations" persistent-id="kempo-tax-admin-tab">
+    <k-tabs id="tabs" active="registrations" hash-routing>
       <k-tab id="registrationsTab" for="registrations">Where tax is collected</k-tab>
       <k-tab id="ratesTab" for="rates">Rates</k-tab>
       <k-tab id="reportsTab" for="reports">Reports</k-tab>
@@ -45,6 +45,8 @@ locked: true
       <k-tab-content id="settingsContent" name="settings">
         <k-tax-settings></k-tax-settings>
       </k-tab-content>
+
+      <location name="tax-admin-tabs" />
     </k-tabs>
 
     <!--
@@ -65,7 +67,7 @@ locked: true
     await customElements.whenDefined('k-tabs');
 
     /*
-      persistent-id can restore a tab this visitor cannot see if their permissions changed since.
+      The hash can name a tab this visitor cannot see, such as a bookmark from before their permissions changed.
       The permission targets hide a tab's button and pane; this stops a hidden one staying selected.
     */
     const [error, data] = await getAllCurrentUserPermissions();

@@ -1,6 +1,7 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { calculateTax, listTaxCodes } from '/tax/sdk.js';
+import '/kempo-ui/components/Table.js';
 
 /*
   Ask for a calculation by hand.
@@ -36,7 +37,12 @@ export default class TaxTry extends ShadowComponent {
 
   connectedCallback(){
     super.connectedCallback();
-    this.loadClasses();
+    const pane = this.closest('k-tab-content');
+    // Loads when its tab is first shown, so a tab nobody opens makes no requests.
+    if(!pane || pane.active) this.loadClasses();
+    else this.closest('k-tabs')?.addEventListener('tabfirstshown', ({ detail }) => {
+      if(detail.tab === pane.name) this.loadClasses();
+    });
   }
 
   /*
@@ -90,7 +96,7 @@ export default class TaxTry extends ShadowComponent {
     return html`
       <p class="tc-muted mb">A quote only — nothing is recorded or reported.</p>
 
-      <div class="grid">
+      <div class="d-g cols-2 m-cols-1 mb" style="gap: var(--spacer_h);">
         ${this.#field('Country', 'country', { placeholder: 'US' })}
         ${this.#field('State / region', 'state', { placeholder: 'CA' })}
         ${this.#field('Postal code', 'postalCode', { placeholder: '94103' })}
@@ -118,21 +124,7 @@ export default class TaxTry extends ShadowComponent {
             : html`<span class="tc-warning">not collecting here — this is a quote of the rate only</span>`}
         </p>
         ${this.result.breakdown.length ? html`
-          <table class="mb">
-            <thead><tr><th>Jurisdiction</th><th>Type</th><th>Rate</th><th>Taxable</th><th>Tax</th><th>Reason</th></tr></thead>
-            <tbody>
-              ${this.result.breakdown.map(entry => html`
-                <tr>
-                  <td>${entry.jurisdiction || '—'}</td>
-                  <td>${entry.taxType || '—'}</td>
-                  <td>${entry.rate === null ? '—' : `${entry.rate}%`}</td>
-                  <td>${this.#money(entry.taxableAmount)}</td>
-                  <td>${this.#money(entry.amount)}</td>
-                  <td >${entry.reason}</td>
-                </tr>
-              `)}
-            </tbody>
-          </table>
+          <k-table class="mb" .records=${this.result.breakdown} .fields=${[{ name: 'jurisdiction', label: 'Jurisdiction', editable: false, calculator: entry => entry.jurisdiction || '—' }, { name: 'taxType', label: 'Type', size: 140, editable: false, calculator: entry => entry.taxType || '—' }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: entry => entry.rate === null ? '—' : `${entry.rate}%` }, { name: 'taxableAmount', label: 'Taxable', size: 130, editable: false, calculator: entry => this.#money(entry.taxableAmount) }, { name: 'amount', label: 'Tax', size: 130, editable: false, calculator: entry => this.#money(entry.amount) }, { name: 'reason', label: 'Reason', editable: false }]}></k-table>
         ` : ''}
       ` : ''}
     `;
@@ -140,7 +132,6 @@ export default class TaxTry extends ShadowComponent {
 
   static styles = css`
     :host { display: block; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: var(--spacer_h); margin-bottom: var(--spacer); }
     .field { margin-bottom: 0; }
   `;
 }

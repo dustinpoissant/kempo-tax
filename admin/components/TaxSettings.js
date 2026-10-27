@@ -2,6 +2,9 @@ import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
 import '/kempo-ui/components/Spinner.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { getSettings, saveSettings, listTaxCodes } from '/tax/sdk.js';
+import Dialog from '/kempo-ui/components/Dialog.js';
+import '/kempo-ui/components/Table.js';
+import './RateAction.js';
 
 /*
   Connecting the site to Stripe, and the defaults a calculation falls back on.
@@ -103,6 +106,25 @@ const pane = this.closest('k-tab-content');
     this.values = { ...this.values, [name]: value };
   };
 
+  changeClass = record => {
+    const current = this.values.taxClassByType?.[record.key] ?? '';
+    const options = [...new Set([...this.classes, current].filter(Boolean))];
+    const $dialog = Dialog.create(html`
+      <div class="p">
+        <label class="d-b mbq" for="type-class">Tax class<small class="d-b tc-muted">How ${record.name} sales are taxed. Save settings keeps the change.</small></label>
+        <select id="type-class" class="full">
+          <option value="" ?selected=${!current}>Default (${this.values.taxClass || 'physical'})</option>
+          ${options.map(name => html`<option value=${name} ?selected=${current === name}>${name}</option>`)}
+        </select>
+      </div>
+    `, {
+      title: `Tax class for ${record.name}`,
+      confirmText: 'Set',
+      cancelText: 'Cancel',
+      confirmAction: () => this.setTypeClass(record.key, $dialog.querySelector('#type-class').value),
+    });
+  };
+
   setTypeClass = (type, taxClass) => {
     this.values = { ...this.values, taxClassByType: { ...(this.values.taxClassByType ?? {}), [type]: taxClass } };
   };
@@ -196,7 +218,7 @@ const pane = this.closest('k-tab-content');
         <strong>
           ${this.status.livemode ? 'Using a live key — calculations are real.' : 'Using a test key. No real tax is reported.'}
         </strong>
-        <p >
+        <p class="mb">
           ${this.status.keySource === 'payments'
             ? 'The key is borrowed from kempo-payments. Save one below to give tax its own.'
             : 'The key is stored on this screen.'}
@@ -296,20 +318,7 @@ const pane = this.closest('k-tab-content');
           a different product type. A type set to the default uses the default tax class above. Credits are a digital asset, like a game
           currency, so they start as digital. Check with a tax adviser if you are not sure how your products are taxed.
         </p>
-        <table class="mb">
-          <thead><tr><th>Product type</th><th>Taxed as</th></tr></thead>
-          <tbody>
-            ${this.productTypes.map(type => html`<tr>
-              <td>${type.name}</td>
-              <td>
-                <select aria-label=${`Tax class for ${type.name}`} @change=${event => this.setTypeClass(type.key, event.target.value)}>
-                  <option value="" ?selected=${!this.values.taxClassByType?.[type.key]}>Default (${this.values.taxClass || 'physical'})</option>
-                  ${[...new Set([...this.classes, this.values.taxClassByType?.[type.key]].filter(Boolean))].map(name => html`<option value=${name} ?selected=${this.values.taxClassByType?.[type.key] === name}>${name}</option>`)}
-                </select>
-              </td>
-            </tr>`)}
-          </tbody>
-        </table>
+        <k-table class="mb" .records=${this.productTypes.map(type => ({ ...type, taxedAs: this.values.taxClassByType?.[type.key] || `Default (${this.values.taxClass || 'physical'})`, actions: ['change'] }))} .fields=${[{ name: 'name', label: 'Product type', editable: false }, { name: 'taxedAs', label: 'Taxed as', editable: false }]} @rateAction=${event => this.changeClass(event.detail.record)}><k-tax-rate-action slot="after" action="change" label="Change"></k-tax-rate-action></k-table>
       ` : ''}
 
       <label class="field">

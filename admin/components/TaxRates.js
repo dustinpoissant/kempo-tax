@@ -1,9 +1,20 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
+import '/kempo-ui/components/controls/TcSearch.js';
+import '/kempo-ui/components/controls/TcFilters.js';
+import '/kempo-ui/components/controls/TcFieldSortHide.js';
 import '/kempo-ui/components/Table.js';
-import './RateAction.js';
 import '/kempo-ui/components/Spinner.js';
-import { html, css } from '/kempo-ui/lit-all.min.js';
-import { listRates, createRate, updateRate, deleteRate, importRates, quickStart, exportUrls } from '/tax/sdk.js';
+import '/kempo-ui/components/Icon.js';
+import '/kempo-ui/components/Accordion.js';
+import { html, css, nothing } from '/kempo-ui/lit-all.min.js';
+import Dialog from '/kempo-ui/components/Dialog.js';
+import Toast from '/kempo-ui/components/Toast.js';
+import '/kempo-ui/components/controls/TcDeleteRecord.js';
+import '/kempo-ui/components/controls/TcDeleteSelected.js';
+import './RateAction.js';
+import './ImportCsv.js';
+import './ExportCsv.js';
+import { listRates, createRate, updateRate, deleteRate, importRates, quickStart } from '/tax/sdk.js';
 
 /*
   The rate table, and the quick start that fills it.
@@ -33,7 +44,6 @@ export default class TaxRates extends ShadowComponent {
     loaded: { type: Boolean, state: true },
     editing: { type: Object, state: true },
     quick: { type: Object, state: true },
-    importing: { type: Boolean, state: true },
     csv: { type: String, state: true },
     error: { type: String, state: true },
     notice: { type: String, state: true },
@@ -46,7 +56,6 @@ export default class TaxRates extends ShadowComponent {
     this.loaded = false;
     this.editing = null;
     this.quick = { country: 'US', state: '', stateRate: '', jurisdiction: '', taxable: ['physical'], exempt: ['nontaxable'], shipping: 'none', locals: '' };
-    this.importing = false;
     this.csv = '';
     this.error = '';
     this.notice = '';
@@ -73,14 +82,69 @@ const pane = this.closest('k-tab-content');
 
   load = async () => {
     const [error, data] = await listRates();
-    if(error) this.error = error.msg;
+    if(error) Toast.error(error.msg);
     else this.rates = data.rates;
     this.loaded = true;
   };
 
   say = (notice, error = '') => {
-    this.notice = notice;
-    this.error = error;
+    if(notice) Toast.success(notice);
+    if(error) Toast.error(error);
+  };
+
+  /* The columns the table shows, and the hidden ones that carry the CSV columns. */
+  tableFields = [
+  { name: 'place', label: 'Place', size: 240, editable: false, calculator: rate => [rate.country, rate.state, rate.locality, rate.postalPattern].filter(Boolean).join(' · ') },
+  { name: 'taxClass', label: 'Applies to', size: 170, editable: false },
+  { name: 'level', label: 'Level', size: 110, editable: false },
+  { name: 'rateDisplay', label: 'Rate', size: 100, editable: false, calculator: rate => rate.kind === 'exempt' ? 'exempt' : `${rate.rate}%` },
+  { name: 'shippingDisplay', label: 'Shipping', size: 100, editable: false, calculator: rate => rate.appliesToShipping === 'true' ? 'yes' : '' },
+  { name: 'effectiveDisplay', label: 'Effective', size: 200, editable: false, calculator: rate => `${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}` },
+  { name: 'jurisdiction', label: 'Name', editable: false },
+  { name: 'country', hidden: true },
+  { name: 'state', hidden: true },
+  { name: 'locality', hidden: true },
+  { name: 'postalPattern', hidden: true },
+  { name: 'kind', hidden: true },
+  { name: 'rate', hidden: true },
+  { name: 'appliesToShipping', hidden: true },
+  { name: 'shippingProportional', hidden: true },
+  { name: 'taxType', hidden: true },
+  { name: 'label', hidden: true },
+  { name: 'priority', hidden: true },
+  { name: 'enabled', hidden: true },
+  { name: 'effectiveFrom', hidden: true },
+  { name: 'effectiveTo', hidden: true },
+  { name: 'note', hidden: true }
+  ];
+
+  /* The table's rows: the rates with the booleans and the rate as text, so an export writes them as they are imported. */
+  tableRecords = () => this.rates.map(rate => ({
+    ...rate,
+    rate: String(rate.rate),
+    priority: String(rate.priority ?? 0),
+    appliesToShipping: String(rate.appliesToShipping === true),
+    shippingProportional: String(rate.shippingProportional === true),
+    enabled: String(rate.enabled !== false),
+  }));
+
+  /* The editor is a dialog: it opens when a rate is being edited or added, and the page clears the rate when it closes. */
+  updated(changed){
+    super.updated(changed);
+    if(changed.has('rates')) this.renderRoot.querySelector('k-table')?.setData({ records: this.tableRecords(), fields: this.tableFields });
+    const dialog = this.renderRoot.querySelector('#rateDialog');
+    if(!dialog || !changed.has('editing')) return;
+    if(this.editing && !dialog.opened) dialog.open();
+    if(!this.editing && dialog.opened) dialog.close();
+  }
+
+  closeEditor = () => {
+    this.editing = null;
+  };
+
+  confirmSave = event => {
+    event.keepDialogOpen = true;
+    this.save();
   };
 
   save = async () => {
@@ -89,7 +153,7 @@ const pane = this.closest('k-tab-content');
     const [error] = id ? await updateRate(id, body) : await createRate(body);
     this.busy = false;
 
-    if(error) return this.say('', error.msg);
+    if(error) return Toast.error(error.msg);
     this.editing = null;
     this.say('Saved.');
     await this.load();
@@ -115,6 +179,13 @@ const pane = this.closest('k-tab-content');
     await this.load();
   };
 
+  openQuickStart = () => this.renderRoot.querySelector('#quickStartDialog').open();
+
+  confirmQuickStart = event => {
+    event.keepDialogOpen = true;
+    this.runQuickStart();
+  };
+
   runQuickStart = async () => {
     const { country, state, stateRate, jurisdiction, taxable, exempt, shipping, locals } = this.quick;
 
@@ -130,7 +201,29 @@ const pane = this.closest('k-tab-content');
     this.busy = false;
 
     if(error) return this.say('', error.msg);
+    this.renderRoot.querySelector('#quickStartDialog')?.close();
     this.say(`Added ${data.added} rates and switched the provider to the rate table. Review them below.`);
+    await this.load();
+  };
+
+  /* The import control opens the dialog, where a CSV file is chosen. The file's text is what gets imported. */
+  openImport = () => this.renderRoot.querySelector('#importDialog').open();
+
+  pickFile = async ({ target }) => {
+    const [file] = target.files;
+    this.csv = file ? await file.text() : '';
+  };
+
+  confirmImport = event => {
+    event.keepDialogOpen = true;
+    if(!this.csv) return Toast.error('Choose a CSV file to import');
+    this.runImport();
+  };
+
+  resume = async rate => {
+    const [error] = await updateRate(rate.id, { ...rate, effectiveTo: '' });
+    if(error) return Toast.error(error.msg);
+    this.say('Resumed.');
     await this.load();
   };
 
@@ -139,10 +232,11 @@ const pane = this.closest('k-tab-content');
     const [error, data] = await importRates(this.csv);
     this.busy = false;
 
-    if(error) return this.say('', error.msg);
-    this.importing = false;
+    if(error) return Toast.error(error.msg);
+    this.renderRoot.querySelector('#importDialog').close();
     this.csv = '';
-    this.say(`Added ${data.added} rates.`);
+    const added = data.added ? `Added ${data.added} rate${data.added === 1 ? '' : 's'}.` : 'Nothing added.';
+    this.say(data.skipped ? `${added} Skipped ${data.skipped} already in the table.` : added);
     await this.load();
   };
 
@@ -175,8 +269,7 @@ const pane = this.closest('k-tab-content');
     const rate = this.editing;
 
     return html`
-      <div class="card pb">
-        <h2>${rate.id ? 'Edit rate' : 'Add a rate'}</h2>
+      <div>
         <div class="grid">
           ${this.#field('Country', 'country', { placeholder: 'US' })}
           ${this.#field('State / region', 'state', { placeholder: 'VT — blank for the whole country' })}
@@ -220,18 +313,16 @@ const pane = this.closest('k-tab-content');
             …and only in proportion to the taxable goods in the order
           </label>
         ` : ''}
-        <button class="primary" ?disabled=${this.busy} @click=${this.save}>${this.busy ? 'Saving…' : 'Save'}</button>
-        <button class="secondary" @click=${() => { this.editing = null; }}>Cancel</button>
       </div>
     `;
   }
 
-  #renderQuickStart(){
+  #renderQuickStart(inDialog = false){
     const quick = this.quick;
 
     return html`
-      <div class="card pb">
-        <h2>Quick start</h2>
+      <div class="${inDialog ? '' : 'card pb'}">
+        ${inDialog ? nothing : html`<h2>Quick start</h2>`}
         <p class="tc-muted mb">
           Answer five questions and the matching rows are created for you — real rows, which you can then edit.
           <strong>Get the rate from your tax authority</strong>; this does not look it up or guess it.
@@ -274,61 +365,93 @@ const pane = this.closest('k-tab-content');
           <textarea rows="3" placeholder="Burlington = 1" .value=${quick.locals} @input=${event => this.setQuick('locals', event.target.value)}></textarea>
         </label>
 
-        <button class="primary" ?disabled=${this.busy} @click=${this.runQuickStart}>${this.busy ? 'Creating…' : 'Create the rates'}</button>
+        ${inDialog ? nothing : html`<button class="primary" ?disabled=${this.busy} @click=${this.runQuickStart}>${this.busy ? 'Creating…' : 'Create the rates'}</button>`}
       </div>
     `;
   }
 
-  /* A row's action from the rates table. Editing works on a copy without the row's own action list. */
+  /* A row action from the rates table. Editing works on a copy without the row's own action list. */
   rateAction = ({ action, record }) => {
-    const { actions, ...rate } = record;
+    const rate = this.rates.find(entry => entry.id === record.id);
     if(action === 'edit') this.editing = { ...rate };
-    else if(action === 'end') this.end(rate);
-    else if(action === 'delete') this.remove(rate);
+    else if(action === 'toggle') rate.effectiveTo ? this.resume(rate) : this.end(rate);
   };
 
+  /* Deleting a row, or the selected rows, after the person confirms. The table removes them once this approves. */
+  confirmDelete = ({ detail: { records, approve, reject } }) => {
+    const count = records.length;
+    Dialog.confirm(`Delete ${count === 1 ? 'this rate' : `${count} rates`}? Ending keeps the history; deleting is for a row entered by mistake. Recorded sales are not affected either way.`, async confirmed => {
+      if(!confirmed) return reject();
+      for(const rate of records){
+        const [error] = await deleteRate(rate.id);
+        if(error){
+          reject();
+          return this.say('', error.msg);
+        }
+      }
+      approve();
+      this.say(`Deleted ${count === 1 ? 'the rate' : `${count} rates`}.`);
+      await this.load();
+    });
+  };
 
   render(){
     if(!this.loaded) return html`<k-spinner></k-spinner>`;
 
     return html`
-      ${this.error ? html`<p class="tc-danger mb">${this.error}</p>` : ''}
-      ${this.notice ? html`<p class="tc-success mb">${this.notice}</p>` : ''}
 
-      ${this.editing ? this.#renderEditor() : ''}
-      ${!this.rates.length && !this.editing ? this.#renderQuickStart() : ''}
+      <k-dialog id="rateDialog" style="--width: 52rem;" confirm-text="Save" confirm-classes="primary ml" cancel-text="Cancel" .confirmAction=${this.confirmSave} @close=${this.closeEditor}>
+        <h2 slot="title" class="h5 pyh px m0">${this.editing?.id ? 'Edit rate' : 'Add a rate'}</h2>
+        <div class="p">
+          ${this.editing ? this.#renderEditor() : nothing}
+        </div>
+      </k-dialog>
+      ${!this.rates.length ? this.#renderQuickStart() : ''}
 
       ${this.rates.length ? html`
         <p class="tc-muted mb">
           Rates stack by level: the most specific row at each level applies, and the levels add. To change a rate going
           forward, <strong>end</strong> the old row and add a new one — a sale quoted last month keeps last month's rate.
         </p>
-        <k-table .records=${this.rates.map(rate => ({ ...rate, actions: ['edit', rate.effectiveTo ? null : 'end', 'delete'].filter(Boolean) }))} .fields=${[{ name: 'place', label: 'Place', size: 240, editable: false, calculator: rate => [rate.country, rate.state, rate.locality, rate.postalPattern].filter(Boolean).join(' · ') }, { name: 'taxClass', label: 'Applies to', size: 170, editable: false }, { name: 'level', label: 'Level', size: 110, editable: false }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: rate => rate.kind === 'exempt' ? 'exempt' : `${rate.rate}%` }, { name: 'shipping', label: 'Shipping', size: 100, editable: false, calculator: rate => rate.appliesToShipping ? 'yes' : '' }, { name: 'effective', label: 'Effective', size: 200, editable: false, calculator: rate => `${rate.effectiveFrom || '—'} → ${rate.effectiveTo || 'now'}` }, { name: 'jurisdiction', label: 'Name', editable: false }]} @rateAction=${event => this.rateAction(event.detail)}><k-tax-rate-action slot="before" action="edit" label="Edit"></k-tax-rate-action><k-tax-rate-action slot="after" action="end" label="End"></k-tax-rate-action><k-tax-rate-action slot="after" action="delete" label="Delete"></k-tax-rate-action></k-table>
       ` : ''}
 
-      <p class="mb">
-        ${this.editing ? '' : html`<button class="primary" @click=${() => { this.editing = blank(); }}>Add a rate</button>`}
-        <button class="secondary" @click=${() => { this.importing = !this.importing; }}>Import CSV</button>
-        <a class="button secondary" href=${exportUrls.rates}>Export CSV</a>
-      </p>
+      <k-table enable-selection request-delete placeholder="No rates yet. Answer the quick start questions above, or add a rate."
+        @rateAction=${event => this.rateAction(event.detail)}
+        @requestDelete=${this.confirmDelete}
+        @importCsv=${this.openImport}>
+        <k-tax-rate-action slot="before" action="edit" label="Edit"></k-tax-rate-action>
+        <k-tax-rate-action slot="after" action="toggle" label="End or resume"></k-tax-rate-action>
+        <kc-tc-delete-record slot="after"></kc-tc-delete-record>
+        <div slot="top" class="d-f full" style="align-items: center; gap: var(--spacer);">
+          <kc-tc-search style="width: 16rem"></kc-tc-search><kc-tc-filters></kc-tc-filters><kc-tc-field-sort-hide></kc-tc-field-sort-hide>
+          <kc-tc-delete-selected></kc-tc-delete-selected>
+          <div class="flex"></div>
+          <k-tax-export-csv></k-tax-export-csv>
+          <k-tax-import-csv></k-tax-import-csv>
+          <button class="primary" @click=${() => { this.editing = blank(); }}><k-icon name="add"></k-icon> Add a rate</button>
+        </div>
+      </k-table>
 
-      ${this.importing ? html`
-        <div class="card pb">
+      <k-dialog id="importDialog" style="--width: 40rem;" confirm-text="Import" confirm-classes="primary ml" cancel-text="Cancel" .confirmAction=${this.confirmImport}>
+        <h2 slot="title" class="h5 pyh px m0">Import rates from a CSV</h2>
+        <div class="p">
           <p class="tc-muted mb">
             Columns: country, state, locality, postalPattern, taxClass, level, kind, rate, appliesToShipping, taxType,
             jurisdiction, label, priority, enabled, effectiveFrom, effectiveTo, note. Only country and rate are required.
             It only adds rows, and if any row is wrong nothing is added.
           </p>
-          <textarea rows="8" class="ff-mono" .value=${this.csv} @input=${event => { this.csv = event.target.value; }}></textarea>
-          <button class="primary" ?disabled=${this.busy || !this.csv.trim()} @click=${this.runImport}>Import</button>
+          <input type="file" accept=".csv,text/csv" @change=${this.pickFile}>
         </div>
-      ` : ''}
+      </k-dialog>
 
-      ${this.rates.length && !this.editing ? html`
-        <details class="mb">
-          <summary class="tc-muted">Run the quick start again</summary>
-          ${this.#renderQuickStart()}
-        </details>
+      ${this.rates.length ? html`
+        <p class="mb"><button class="secondary" @click=${this.openQuickStart}>Run the quick start again</button></p>
+        <k-dialog id="quickStartDialog" style="--width: 48rem;" confirm-text="Create the rates" confirm-classes="primary ml" cancel-text="Cancel" .confirmAction=${this.confirmQuickStart}>
+          <h2 slot="title" class="h5 pyh px m0">Quick start</h2>
+          <div class="p">
+            ${this.#renderQuickStart(true)}
+          </div>
+        </k-dialog>
       ` : ''}
     `;
   }

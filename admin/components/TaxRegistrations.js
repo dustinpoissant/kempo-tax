@@ -1,4 +1,7 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
+import '/kempo-ui/components/controls/TcSearch.js';
+import '/kempo-ui/components/controls/TcFilters.js';
+import '/kempo-ui/components/controls/TcFieldSortHide.js';
 import '/kempo-ui/components/Table.js';
 import '/kempo-ui/components/Spinner.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
@@ -135,11 +138,11 @@ const pane = this.closest('k-tab-content');
 
     return html`
       <div class="card banner ${this.status.livemode && this.status.provider !== 'rates' ? 'tc-danger' : 'tc-success'}">
-        <strong>
+        <p class="mb"><strong>
           ${this.status.livemode
             ? (this.status.provider === 'rates' ? 'Collecting from the rate table.' : 'Connected in live mode — tax is collected for real.')
             : 'Connected in test mode. Nothing here is reported to anyone.'}
-        </strong>
+        </strong></p>
       </div>
     `;
   }
@@ -152,7 +155,7 @@ const pane = this.closest('k-tab-content');
       ${this.error ? html`<p class="tc-danger mb">${this.error}</p>` : ''}
 
       ${this.registrations.length ? html`
-        <k-table .records=${this.registrations} .fields=${[{ name: 'country', label: 'Country', size: 120, editable: false }, { name: 'state', label: 'Region', size: 160, editable: false, calculator: entry => entry.state || '—' }, { name: 'type', label: 'Type', editable: false, calculator: entry => entry.type || '—' }, { name: 'status', label: 'Status', size: 140, editable: false }, { name: 'activeFrom', label: 'Active from', size: 180, editable: false, calculator: entry => entry.activeFrom ? new Date(entry.activeFrom).toLocaleDateString() : '—' }]}></k-table>
+        <k-table .records=${this.registrations} .fields=${[{ name: 'country', label: 'Country', size: 120, editable: false }, { name: 'state', label: 'Region', size: 160, editable: false, calculator: entry => entry.state || '—' }, { name: 'type', label: 'Type', editable: false, calculator: entry => entry.type || '—' }, { name: 'status', label: 'Status', size: 140, editable: false }, { name: 'activeFrom', label: 'Active from', size: 180, editable: false, calculator: entry => entry.activeFrom ? new Date(entry.activeFrom).toLocaleDateString() : '—' }]}><div slot="top" class="d-f full" style="align-items: center;"><div class="flex"></div><kc-tc-search style="width: 16rem"></kc-tc-search><kc-tc-filters></kc-tc-filters><kc-tc-field-sort-hide></kc-tc-field-sort-hide></div></k-table>
       ` : ''}
 
       <p class="tc-muted mb">

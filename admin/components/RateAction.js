@@ -1,12 +1,12 @@
 import ButtonControl from '/kempo-ui/components/controls/ButtonControl.js';
 import { html } from '/kempo-ui/lit-all.min.js';
+import '/kempo-ui/components/Icon.js';
 
 /*
-  One action on a row of this order's labels or rates (track, ask for a refund, buy). It shows only when its
-  row's `actions` list names it, and reports the choice as an `rateAction` event on the table: { action, record }.
-  The page does the work. A row's own button text can come from the record (`buyLabel`), else from `label`.
+  A row control on a tax table, drawn as an icon. It reports its action as a `rateAction` event on the table:
+  { action, record }. The page does the work. A "toggle" control ends an active rate and resumes an ended one.
 
-    <k-tax-rate-action slot="after" action="edit" label="Edit"></k-tax-rate-action>
+    <k-tax-rate-action slot="after" action="toggle" label="End or resume"></k-tax-rate-action>
 */
 export default class RateAction extends ButtonControl {
   static properties = {
@@ -21,22 +21,25 @@ export default class RateAction extends ButtonControl {
     this.label = '';
   }
 
+  connectedCallback(){
+    super.connectedCallback();
+    if(!this.hasAttribute('title')) this.title = this.label;
+  }
+
   get record(){
     const index = this.closest('.record')?.dataset?.index;
     return index === undefined ? null : this.host?.records?.[index] ?? null;
   }
 
-  get shown(){
-    return Boolean(this.record?.actions?.includes(this.action));
-  }
-
   handleAction(){
-    if(!this.shown) return;
     this.host.dispatchEvent(new CustomEvent('rateAction', { detail: { action: this.action, record: this.record } }));
   }
 
   render(){
-    return this.shown ? html`<slot>${this.record?.[`${this.action}Label`] ?? this.label}</slot>` : html``;
+    if(this.action === 'edit' || this.action === 'change') return html`<slot><k-icon name="edit"></k-icon></slot>`;
+    if(this.action === 'toggle' && this.record?.effectiveTo) return html`<slot><k-icon name="play"></k-icon></slot>`;
+    if(this.action === 'toggle') return html`<slot><k-icon src="/admin/extension/kempo-tax/icons/stop_circle.svg"></k-icon></slot>`;
+    return html`<slot>${this.label}</slot>`;
   }
 }
 

@@ -1,6 +1,16 @@
 import ShadowComponent from '/kempo-ui/components/ShadowComponent.js';
+import '/kempo-ui/components/controls/TcSearch.js';
+import '/kempo-ui/components/controls/TcFilters.js';
+import '/kempo-ui/components/controls/TcFieldSortHide.js';
 import '/kempo-ui/components/Spinner.js';
 import '/kempo-ui/components/Table.js';
+import '/kempo-ui/components/controls/TcFirstPage.js';
+import '/kempo-ui/components/controls/TcPrevPage.js';
+import '/kempo-ui/components/controls/TcNextPage.js';
+import '/kempo-ui/components/controls/TcLastPage.js';
+import '/kempo-ui/components/controls/TcPageSelect.js';
+import '/kempo-ui/components/controls/TcPageSize.js';
+import Toast from '/kempo-ui/components/Toast.js';
 import { html, css } from '/kempo-ui/lit-all.min.js';
 import { getReport, listLedger, exportUrls } from '/tax/sdk.js';
 
@@ -34,7 +44,6 @@ export default class TaxReports extends ShadowComponent {
     to: { type: String, state: true },
     mode: { type: String, state: true },
     report: { type: Object, state: true },
-    entries: { type: Array, state: true },
     total: { type: Number, state: true },
     loading: { type: Boolean, state: true },
     error: { type: String, state: true },
@@ -47,7 +56,6 @@ export default class TaxReports extends ShadowComponent {
     this.to = '';
     this.mode = 'quarter';
     this.report = null;
-    this.entries = [];
     this.total = 0;
     this.loading = false;
     this.error = '';
@@ -59,7 +67,12 @@ export default class TaxReports extends ShadowComponent {
 
   connectedCallback(){
     super.connectedCallback();
-    this.run();
+    const pane = this.closest('k-tab-content');
+    // Loads when its tab is first shown, so a tab nobody opens makes no requests.
+    if(!pane || pane.active) this.run();
+    else this.closest('k-tabs')?.addEventListener('tabfirstshown', ({ detail }) => {
+      if(detail.tab === pane.name) this.run();
+    });
   }
 
   /*
@@ -82,13 +95,26 @@ export default class TaxReports extends ShadowComponent {
     }
     this.report = report;
 
-    const [, ledger] = await listLedger({ ...this.params, from: report.from || this.from, to: report.to || this.to, limit: 50 });
-    if(ledger){
-      this.entries = ledger.entries;
-      this.total = ledger.total;
-    }
-
+    this.ledgerRange = { from: report.from || this.from, to: report.to || this.to };
     this.loading = false;
+    await this.updateComplete;
+    this.loadLedger();
+  };
+
+  ledgerFields = [{ name: 'occurredAt', label: 'When', size: 230, editable: false, formatter: value => new Date(value).toLocaleString() }, { name: 'kind', label: 'Kind', size: 130, editable: false }, { name: 'reference', label: 'Reference', editable: false }, { name: 'provider', label: 'Provider', size: 120, editable: false }, { name: 'place', label: 'Place', size: 160, editable: false, calculator: entry => [entry.country, entry.state].filter(Boolean).join(' ') }, { name: 'salesAmount', label: 'Sales', size: 130, editable: false, calculator: entry => this.#money(entry.salesAmount, entry.currency) }, { name: 'taxAmount', label: 'Tax', size: 130, editable: false, calculator: entry => this.#money(entry.taxAmount, entry.currency) }];
+
+  /* The ledger is read a page at a time: the first page now, the rest as the table asks for them. */
+  loadLedger = async () => {
+    const table = this.renderRoot.querySelector('#ledgerTable');
+    const { from, to } = this.ledgerRange;
+    const [error, ledger] = await listLedger({ from, to, limit: 25, offset: 0 });
+    if(error) return Toast.error(error.msg);
+    this.total = ledger.total;
+    table.setData({ records: ledger.entries, fields: this.ledgerFields });
+    table.setupFetchRecords(ledger.total, async (start, count) => {
+      const [fetchError, page] = await listLedger({ from, to, limit: count, offset: start });
+      return fetchError ? [] : page.entries;
+    });
   };
 
   /*
@@ -119,13 +145,13 @@ export default class TaxReports extends ShadowComponent {
         <em>Not collected</em> is sold where this site has no rate — it appears on no return.</p>
 
       ${data.jurisdictions.length ? html`
-        <k-table .records=${data.jurisdictions} .fields=${[{ name: 'jurisdiction', label: 'Jurisdiction', editable: false, calculator: row => `${row.jurisdiction}${row.state && row.state !== row.jurisdiction ? ` (${row.state})` : ''}` }, { name: 'level', label: 'Level', size: 130, editable: false }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: row => `${row.rate ?? ''}%` }, { name: 'taxableAmount', label: 'Taxable sales', size: 160, editable: false, calculator: row => money(row.taxableAmount) }, { name: 'taxAmount', label: 'Tax (net)', size: 140, editable: false, calculator: row => money(row.taxAmount) }]}></k-table>
+        <k-table .records=${data.jurisdictions} .fields=${[{ name: 'jurisdiction', label: 'Jurisdiction', editable: false, calculator: row => `${row.jurisdiction}${row.state && row.state !== row.jurisdiction ? ` (${row.state})` : ''}` }, { name: 'level', label: 'Level', size: 130, editable: false }, { name: 'rate', label: 'Rate', size: 100, editable: false, calculator: row => `${row.rate ?? ''}%` }, { name: 'taxableAmount', label: 'Taxable sales', size: 160, editable: false, calculator: row => money(row.taxableAmount) }, { name: 'taxAmount', label: 'Tax (net)', size: 140, editable: false, calculator: row => money(row.taxAmount) }]}><div slot="top" class="d-f full" style="align-items: center;"><div class="flex"></div><kc-tc-search style="width: 16rem"></kc-tc-search><kc-tc-filters></kc-tc-filters><kc-tc-field-sort-hide></kc-tc-field-sort-hide></div></k-table>
       ` : ''}
 
       ${data.months.length > 1 ? html`
-        <k-table .records=${data.months} .fields=${[{ name: 'month', label: 'Month', editable: false }, { name: 'taxCollected', label: 'Collected', size: 150, editable: false, calculator: row => money(row.taxCollected) }, { name: 'taxReversed', label: 'Reversed', size: 150, editable: false, calculator: row => money(row.taxReversed) }, { name: 'taxNet', label: 'Net', size: 150, editable: false, calculator: row => money(row.taxNet) }]}></k-table>
+        <k-table .records=${data.months} .fields=${[{ name: 'month', label: 'Month', editable: false }, { name: 'taxCollected', label: 'Collected', size: 150, editable: false, calculator: row => money(row.taxCollected) }, { name: 'taxReversed', label: 'Reversed', size: 150, editable: false, calculator: row => money(row.taxReversed) }, { name: 'taxNet', label: 'Net', size: 150, editable: false, calculator: row => money(row.taxNet) }]}><div slot="top" class="d-f full" style="align-items: center;"><div class="flex"></div><kc-tc-search style="width: 16rem"></kc-tc-search><kc-tc-filters></kc-tc-filters><kc-tc-field-sort-hide></kc-tc-field-sort-hide></div></k-table>
       ` : ''}
-      <p class="mb"><a class="button secondary" href=${exportUrls.report({ ...this.params, currency })}>Export ${currency.toUpperCase()} report (CSV)</a></p>
+      <p class="mb"><a class="btn" href=${exportUrls.report({ ...this.params, currency })}><k-icon name="download"></k-icon> Export ${currency.toUpperCase()} report (CSV)</a></p>
     `;
   }
 
@@ -173,13 +199,26 @@ export default class TaxReports extends ShadowComponent {
       ${this.report && !currencies.length ? html`<p class="mb">No sales were recorded in this period.</p>` : ''}
       ${currencies.map(([currency, data]) => this.#renderCurrency(currency, data))}
 
-      ${this.entries.length ? html`
-        <h2>Ledger <span class="tc-muted">(${this.entries.length} of ${this.total})</span></h2>
-        <k-table .records=${this.entries} .fields=${[{ name: 'occurredAt', label: 'When', size: 190, editable: false, formatter: value => new Date(value).toLocaleString() }, { name: 'kind', label: 'Kind', size: 130, editable: false }, { name: 'reference', label: 'Reference', editable: false }, { name: 'provider', label: 'Provider', size: 120, editable: false }, { name: 'place', label: 'Place', size: 160, editable: false, calculator: entry => [entry.country, entry.state].filter(Boolean).join(' ') }, { name: 'salesAmount', label: 'Sales', size: 130, editable: false, calculator: entry => this.#money(entry.salesAmount, entry.currency) }, { name: 'taxAmount', label: 'Tax', size: 130, editable: false, calculator: entry => this.#money(entry.taxAmount, entry.currency) }]}></k-table>
+      ${this.report ? html`
+        <h2>Ledger <span class="tc-muted">(${this.total})</span></h2>
+        <k-table id="ledgerTable" enable-pages page-size="25" page-size-options="[10,25,50]" placeholder="No sales or refunds were recorded in this period.">
+          <div class="d-f full" style="align-items: center;">
+            <div>
+              <kc-tc-first-page></kc-tc-first-page>
+              <kc-tc-prev-page></kc-tc-prev-page>
+              <kc-tc-next-page></kc-tc-next-page>
+              <kc-tc-last-page></kc-tc-last-page>
+            </div>
+            <div class="flex"></div>
+            <div><kc-tc-page-select></kc-tc-page-select></div>
+            <div class="flex"></div>
+            <div><kc-tc-page-size></kc-tc-page-size></div>
+          </div>
+        </k-table>
       ` : ''}
       <p class="mb">
-        <a class="button secondary" href=${exportUrls.ledger(this.report ? { from: this.report.from || '', to: this.report.to || '' } : {})}>Export this period's ledger (CSV)</a>
-        <a class="button secondary" href=${exportUrls.ledger({})}>Export the whole ledger</a>
+        <a class="btn" href=${exportUrls.ledger(this.report ? { from: this.report.from || '', to: this.report.to || '' } : {})}><k-icon name="download"></k-icon> Export this period's ledger (CSV)</a>
+        <a class="btn" href=${exportUrls.ledger({})}><k-icon name="download"></k-icon> Export the whole ledger</a>
       </p>
       <p class="tc-muted mb">
         The ledger is your legal record of tax collected. It is deleted if this extension is uninstalled —

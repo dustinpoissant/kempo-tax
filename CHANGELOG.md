@@ -6,9 +6,12 @@ All notable changes to `kempo-tax` are documented in this file.
 
 ### Changed
 
+- **Tax admin tabs have hash routing**, so each tab has its own address. The saved-tab memory (`persistent-id`) is removed, as on the blog admin, because the two cannot work together.
 - **Spacing on the Tax screens:** tables, paragraphs, export links and buttons on the Reports, Rates, Where tax is collected and Try a calculation tabs now have the `mb` bottom margin, and the Reports controls are a labelled row (Report on, Quarter or From and To) with the Run report button under it.
 
 ### Added
+
+- The Tax admin page has a `tax-admin-tabs` location after its tabs, so an extension can add a tab there.
 
 - **Tax by product type.** A calculation line can carry `productType`, and a line that names no class of its own is taxed as the class its product type maps to, set on **Settings → What each product type is taxed as** (the `tax_class_by_type` setting). Built-in: Physical Item is physical and Credits Only is digital (a game currency, not a gift card); a type not listed uses the default class. A class named on the line still wins.
 

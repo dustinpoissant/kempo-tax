@@ -96,17 +96,20 @@ export const deleteRate = async id => {
   All or nothing. An import with one bad row in the middle must not leave half of a rate table
   behind: every row is validated first, and only then is anything written, in one statement.
 */
-export const createMany = async inputs => {
+/*
+  Every row is validated before any is written, so one bad row adds none of them.
+*/
+const cleanAll = async inputs => {
   const cleaned = [];
-
   for(const [index, input] of inputs.entries()){
     const [error, clean] = cleanRate(input);
     if(error) return [{ code: error.code, msg: `Row ${index + 1}: ${error.msg}` }, null];
     cleaned.push(clean);
   }
+  return [null, cleaned];
+};
 
-  if(!cleaned.length) return [{ code: 400, msg: 'There are no rows to add' }, null];
-
+const insertRows = async cleaned => {
   const now = new Date();
   try {
     const rows = await db.insert(kempoTaxRate)
@@ -116,6 +119,47 @@ export const createMany = async inputs => {
   } catch {
     return [{ code: 500, msg: 'Could not save the rates' }, null];
   }
+};
+
+export const createMany = async inputs => {
+  const [error, cleaned] = await cleanAll(inputs);
+  if(error) return [error, null];
+  if(!cleaned.length) return [{ code: 400, msg: 'There are no rows to add' }, null];
+  return insertRows(cleaned);
+};
+
+/*
+  What makes a rate the same rate as another: where it applies, what it charges and when. A row with the same
+  key as one already there, or as an earlier row in the same file, is skipped; its label and note do not count.
+*/
+const sameRateKey = rate => JSON.stringify([
+  rate.country, rate.state, rate.locality, rate.postalPattern, rate.taxClass, rate.level, rate.kind, rate.rateMicro,
+  rate.appliesToShipping, rate.shippingProportional, rate.taxType, rate.effectiveFrom, rate.effectiveTo,
+]);
+
+/*
+  The CSV import: adds the rows that are not already in the table, and reports how many it skipped.
+*/
+export const importMany = async inputs => {
+  const [error, cleaned] = await cleanAll(inputs);
+  if(error) return [error, null];
+
+  const existing = await db.select().from(kempoTaxRate).catch(() => null);
+  if(!existing) return [{ code: 500, msg: 'Could not read the rates' }, null];
+
+  const seen = new Set(existing.map(sameRateKey));
+  const fresh = cleaned.filter(clean => {
+    const key = sameRateKey(clean);
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const skipped = cleaned.length - fresh.length;
+  if(!fresh.length) return [null, { created: [], skipped }];
+
+  const [insertError, created] = await insertRows(fresh);
+  if(insertError) return [insertError, null];
+  return [null, { created, skipped }];
 };
 
 export const countRates = async () => {
