@@ -6,6 +6,9 @@ All notable changes to `kempo-tax` are documented in this file.
 
 ### Changed
 
+- The `kempo-ui` peer dependency is now `>=1.0.0`.
+- The `kempo` peer dependency is now `>=4.10.2`.
+
 - **Tax admin tabs have hash routing**, so each tab has its own address. The saved-tab memory (`persistent-id`) is removed, as on the blog admin, because the two cannot work together.
 - **Spacing on the Tax screens:** tables, paragraphs, export links and buttons on the Reports, Rates, Where tax is collected and Try a calculation tabs now have the `mb` bottom margin, and the Reports controls are a labelled row (Report on, Quarter or From and To) with the Run report button under it.
 
